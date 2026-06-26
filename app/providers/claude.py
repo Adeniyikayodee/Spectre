@@ -9,10 +9,10 @@ def configured() -> bool:
 def chat(model: str, messages: list[dict], max_tokens: int = 1500, **kw) -> str:
     from anthropic import Anthropic  # lazy
 
-    system = " ".join(m["content"] for m in messages if m["role"] == "system") or None
+    system = " ".join(m["content"] for m in messages if m["role"] == "system")
     convo = [m for m in messages if m["role"] != "system"]
     client = Anthropic()  # reads ANTHROPIC_API_KEY
-    resp = client.messages.create(
-        model=model, max_tokens=max_tokens, system=system, messages=convo
-    )
-    return resp.content[0].text
+    kwargs = {"model": model, "max_tokens": max_tokens, "messages": convo}
+    if system:  # omit rather than send system=None, which the API can reject
+        kwargs["system"] = system
+    return client.messages.create(**kwargs).content[0].text

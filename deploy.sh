@@ -19,5 +19,6 @@ gcloud run deploy litigation-engine \
   --project "$GCP_PROJECT" \
   --region "$REGION" \
   --allow-unauthenticated \
+  --timeout 3600 \
   --set-env-vars "GCP_PROJECT=${GCP_PROJECT},GCP_REGION=${REGION},BQ_DATASET=${BQ_DATASET:-litigation},NEO4J_URI=${NEO4J_URI:-},NEO4J_USER=${NEO4J_USER:-neo4j}" \
   --update-secrets "ANTHROPIC_API_KEY=anthropic:latest,OPENROUTER_API_KEY=openrouter:latest,PERPLEXITY_API_KEY=perplexity:latest,NEO4J_PASSWORD=neo4j-pw:latest"

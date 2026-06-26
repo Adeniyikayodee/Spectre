@@ -71,6 +71,23 @@ Lovable, point it at a public URL (Cloud Run, or `ngrok http 8000` while develop
 runs; `POST /reset_demo` clears it. Run the same case twice: the second hearing reads
 the reflections the first wrote (a `retrieval` event with `knowledge_base: "experience"`).
 
+## Integration notes (read before going live)
+
+- **Providers fail silently to stubs by design.** After adding any key, run
+  `python -m app.scripts.smoke --live` to confirm it actually pings. A bad key shows
+  a clear `[stub:role]` in output, never a crash.
+- **Gemini (UK judge) needs ADC, not a key.** Set `GCP_PROJECT` *and* either run
+  `gcloud auth application-default login` (local) or grant the Cloud Run service
+  account `roles/aiplatform.user`. Without ADC the call degrades to a stub.
+- **A full panel verdict needs all three judge providers** (Claude + Gemini +
+  Nemotron). If any judge is a stub, confidence reads `models not configured`.
+- **Lovable EventSource must close on `done`.** `es.addEventListener("done", () =>
+  es.close())` — otherwise the browser auto-reconnects and re-runs the whole hearing.
+- **Momen request shape:** `POST /create_case` needs `jurisdictions` as a JSON array
+  and `forum` as a string. CORS is open, so no proxy is needed.
+- **Latency:** a real-model hearing is ~30 sequential calls (a few minutes). Deploy
+  sets Cloud Run `--timeout 3600`; locally there is no timeout.
+
 ## Provider readiness
 
 ```bash
