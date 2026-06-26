@@ -80,7 +80,8 @@ def case_map(case: dict) -> dict:
             nodes.append({
                 "id": aid, "type": "authority",
                 "label": a.get("name") or (a.get("cite") or "")[:60],
-                "cite": a.get("cite"), "turning_point": a.get("turning_point"),
+                "cite": a.get("cite"), "jurisdiction": a.get("jurisdiction"),
+                "turning_point": a.get("turning_point"),
                 "load_bearing": a.get("load_bearing", False),
             })
             edges.append({"from": iid, "to": aid, "rel": "SUPPORTED_BY"})

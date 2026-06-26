@@ -244,7 +244,7 @@ def _annotate_authorities(issue: str, authorities: list[dict], side: str) -> Non
     """Turning-point analyst (Claude): the pivot that actually decided each case, and
     whether it genuinely supports the citing side (a light entailment signal)."""
     for a in authorities:
-        if not a.get("name"):  # placeholder / unparsed — no analyst call
+        if a.get("turning_point") or not a.get("name"):  # seeded or placeholder — no call
             a.setdefault("turning_point", None)
             a.setdefault("supports", "unknown")
             continue
