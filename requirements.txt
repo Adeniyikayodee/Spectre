@@ -1,0 +1,15 @@
+# --- core (needed to run the API) ---
+fastapi
+uvicorn[standard]
+pydantic>=2
+python-dotenv
+httpx
+
+# --- model providers (lazy-imported; only needed when a key is set) ---
+anthropic            # Claude
+openai               # OpenRouter (Nemotron) + Perplexity (both OpenAI-compatible)
+google-genai         # Gemini via Vertex AI
+
+# --- data layer (lazy-imported) ---
+neo4j                # Aura citation graph + fault tree
+google-cloud-bigquery  # system of record (wired at M3)
