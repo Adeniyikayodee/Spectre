@@ -42,6 +42,7 @@ live automatically — no code change.
 | Authorities from Perplexity, parsed to name/cite/point and annotated by the turning-point analyst | Implemented |
 | Neo4j citation graph and load-bearing fault tree | In-memory calculation; best-effort persistence to Aura |
 | BigQuery store | Real append, guarded; a no-op until `GCP_PROJECT` is set |
+| Experience base + post-verdict reflection (cross-run learning) | SQLite; a later run reads earlier runs' reflections |
 
 ## Live stream (front-end contract)
 
@@ -59,11 +60,16 @@ blocking `POST /run_hearing` returns the same result as one JSON body.
 | `panel_ruling` | `issue`, `jurisdiction`, `text` | lights the UK/US/NG judge |
 | `score_update` | `issue`, `scores {cognitive_agility, professional_knowledge, logical_rigor, overall}` | the scoreboard |
 | `verdict` | `outcomes[]` | the verdict screen |
+| `reflection_write` | `base`, `side`, `kind`, `text` | the experience base growing |
 | `done` | none | close the stream |
 | `error` | `message` | a toast |
 
 Browser `EventSource` is GET-only, hence the query param. CORS is open; for hosted
 Lovable, point it at a public URL (Cloud Run, or `ngrok http 8000` while developing).
+
+`GET /list_experience` returns the experience base so the UI can show it grow across
+runs; `POST /reset_demo` clears it. Run the same case twice: the second hearing reads
+the reflections the first wrote (a `retrieval` event with `knowledge_base: "experience"`).
 
 ## Provider readiness
 
