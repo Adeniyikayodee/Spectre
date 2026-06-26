@@ -1,17 +1,42 @@
-"""Live retrieval. Perplexity returns analogous case law as structured rows
-(NAME | CITATION | holding); Cellar (EU) serves legislation. Robust parse, with
-a clear placeholder when no key is set."""
+"""Authorities for an issue. Prefers a hand-checked seed set (truthful, instant, no
+spend); falls back to Perplexity live retrieval for non-seeded issues. Cellar (EU)
+serves legislation."""
+import copy
+import json
 import os
 
 from . import agents
+
+_SEEDS: list[dict] = []
 
 
 def configured() -> bool:
     return bool(os.getenv("PERPLEXITY_API_KEY"))
 
 
+def _seeded(issue: str) -> list[dict] | None:
+    """Hand-checked authorities matched to the issue by keyword; a deep copy so the
+    pipeline can annotate without mutating the shared seed."""
+    global _SEEDS
+    if not _SEEDS:
+        path = os.path.join(os.path.dirname(__file__), "fixtures", "authorities.json")
+        try:
+            with open(path) as f:
+                _SEEDS = json.load(f).get("seeds", [])
+        except Exception:
+            _SEEDS = []
+    low = issue.lower()
+    for seed in _SEEDS:
+        if seed["when"].lower() in low:
+            return copy.deepcopy(seed["authorities"])
+    return None
+
+
 def find_authorities(issue: str, jurisdictions: list[str]) -> list[dict]:
     """Up to 3 analogous authorities for an issue, each {name, cite, point}."""
+    seeded = _seeded(issue)
+    if seeded:
+        return seeded
     if not configured():
         return [{"name": None, "cite": "(set PERPLEXITY_API_KEY for live authorities)",
                  "point": None}]

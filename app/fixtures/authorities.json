@@ -1,0 +1,84 @@
+{
+  "_note": "Hand-checked authorities for the worked demo case. Matched to an issue by the 'when' keyword. Real cases for true propositions; Nigeria is flagged for confirmation rather than invented (thin open-data coverage).",
+  "seeds": [
+    {
+      "when": "repudiatory",
+      "authorities": [
+        {
+          "name": "Hong Kong Fir Shipping Co Ltd v Kawasaki Kisen Kaisha Ltd",
+          "cite": "[1962] 2 QB 26 (CA)",
+          "jurisdiction": "UK",
+          "point": "Whether a breach allows termination turns on whether it deprives the innocent party of substantially the whole benefit of the contract (the innominate term approach).",
+          "turning_point": "The court refused a rigid condition/warranty split and asked how serious the breach's consequences were; the delay did not go to the root, so termination was not justified.",
+          "supports": "contested"
+        },
+        {
+          "name": "Bunge Corporation v Tradax Export SA",
+          "cite": "[1981] 1 WLR 711 (HL)",
+          "jurisdiction": "UK",
+          "point": "In mercantile contracts, stipulations as to time are generally conditions, so late performance of a time term can entitle the innocent party to terminate.",
+          "turning_point": "The need for certainty in commercial dealings led the House of Lords to treat the time stipulation as a condition, allowing termination.",
+          "supports": "yes"
+        },
+        {
+          "name": "Ramirez v. Autosport",
+          "cite": "88 N.J. 277 (1982)",
+          "jurisdiction": "US",
+          "point": "Under the UCC perfect tender rule (s 2-601), a buyer may reject goods that fail to conform in any respect, subject to the seller's right to cure.",
+          "turning_point": "Rejection was upheld because the seller failed to cure within a reasonable time, not merely because the tender was imperfect.",
+          "supports": "yes"
+        }
+      ]
+    },
+    {
+      "when": "force majeure",
+      "authorities": [
+        {
+          "name": "Channel Island Ferries Ltd v Sealink UK Ltd",
+          "cite": "[1988] 1 Lloyd's Rep 323 (CA)",
+          "jurisdiction": "UK",
+          "point": "A 'beyond reasonable control' force majeure clause requires the party to show it took all reasonable steps to avoid or mitigate the event.",
+          "turning_point": "Reliance on the clause failed because the party had not shown it took reasonable steps; the event alone was not enough.",
+          "supports": "no"
+        },
+        {
+          "name": "Kel Kim Corp. v. Central Markets, Inc.",
+          "cite": "70 N.Y.2d 900 (1987)",
+          "jurisdiction": "US",
+          "point": "Force majeure clauses are construed narrowly; only events specifically listed in the clause excuse performance.",
+          "turning_point": "Because the disabling event was not enumerated in the clause, the court held performance was not excused.",
+          "supports": "no"
+        },
+        {
+          "name": "Sale of Goods Act (Nigerian state equivalents of the English 1893 Act)",
+          "cite": "Sale of Goods Act 1893 / applicable Nigerian state statute",
+          "jurisdiction": "Nigeria",
+          "point": "Nigerian sale-of-goods law largely mirrors the English Sale of Goods Act; force majeure remains a matter of the contract's express terms.",
+          "turning_point": "Coverage note: Nigerian case law on force majeure strikes is thin in open data. Confirm the controlling state statute and any Supreme Court authority before relying on this.",
+          "supports": "contested"
+        }
+      ]
+    },
+    {
+      "when": "withhold",
+      "authorities": [
+        {
+          "name": "Gilbert-Ash (Northern) Ltd v Modern Engineering (Bristol) Ltd",
+          "cite": "[1974] AC 689 (HL)",
+          "jurisdiction": "UK",
+          "point": "Clear words are needed to exclude a common law right of set-off; absent that, a buyer may withhold against claims for defective performance.",
+          "turning_point": "The House of Lords read the contract as preserving set-off because the exclusion was not expressed clearly enough.",
+          "supports": "yes"
+        },
+        {
+          "name": "Sale of Goods Act 1979, s 53",
+          "cite": "Sale of Goods Act 1979, s 53 (UK)",
+          "jurisdiction": "UK",
+          "point": "On breach of warranty the buyer may set up the diminution in value of the goods against the price rather than withhold the whole sum.",
+          "turning_point": "The remedy is a price reduction reflecting the defect, which limits how much of the price may properly be withheld.",
+          "supports": "contested"
+        }
+      ]
+    }
+  ]
+}
