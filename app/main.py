@@ -1,8 +1,11 @@
 """FastAPI surface. The REST contract from BUILD_PLAN.md §6.
 CORS open for the Lovable/Momen front ends; every body carries the disclaimer."""
+import json
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 load_dotenv()
@@ -46,8 +49,8 @@ def root():
     return {
         "service": "Litigation War-Game Engine",
         "providers": provider_status(),
-        "endpoints": ["/create_case", "/run_hearing", "/assess_appeal",
-                      "/get_playbook", "/get_case_map", "/health"],
+        "endpoints": ["/create_case", "/run_hearing", "/run_hearing/stream",
+                      "/assess_appeal", "/get_playbook", "/get_case_map", "/health"],
         "disclaimer": guardrails.DISCLAIMER,
     }
 
@@ -74,6 +77,25 @@ def run_hearing(body: CaseRef):
     issues = pipeline.run_hearing(case)
     store.save_case(case)
     return guardrails.stamp({"case_id": case["case_id"], "issues": issues})
+
+
+@app.get("/run_hearing/stream")
+def run_hearing_stream(case_id: str):
+    """Server-Sent Events: the hearing as it happens, for the courtroom UI."""
+    case = _require(case_id)
+
+    def gen():
+        try:
+            for event in pipeline.stream_hearing(case):
+                yield f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+            store.save_case(case)
+        except Exception as e:  # surface as a stream error, never a mid-stream 500
+            yield f"event: error\ndata: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/assess_appeal")
