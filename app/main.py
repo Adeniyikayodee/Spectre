@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-from . import graph, guardrails, pipeline, store  # noqa: E402  (after load_dotenv)
+from . import experience, graph, guardrails, pipeline, store  # noqa: E402  (after load_dotenv)
 from .router import provider_status  # noqa: E402
 
 app = FastAPI(title="Litigation War-Game Engine", version="0.1.0")
@@ -50,7 +50,8 @@ def root():
         "service": "Litigation War-Game Engine",
         "providers": provider_status(),
         "endpoints": ["/create_case", "/run_hearing", "/run_hearing/stream",
-                      "/assess_appeal", "/get_playbook", "/get_case_map", "/health"],
+                      "/assess_appeal", "/get_playbook", "/get_case_map",
+                      "/list_experience", "/reset_demo", "/health"],
         "disclaimer": guardrails.DISCLAIMER,
     }
 
@@ -116,3 +117,16 @@ def get_playbook(case_id: str):
 def get_case_map(case_id: str):
     case = _require(case_id)
     return guardrails.stamp({"case_id": case_id, **graph.case_map(case)})
+
+
+@app.get("/list_experience")
+def list_experience():
+    """The experience base, so the UI can show it growing across runs."""
+    return {"count": experience.count(), "entries": experience.all_entries()}
+
+
+@app.post("/reset_demo")
+def reset_demo():
+    experience.reset()
+    store.reset()
+    return {"ok": True, "experience": experience.count()}

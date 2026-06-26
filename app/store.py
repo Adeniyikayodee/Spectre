@@ -19,6 +19,10 @@ def get_case(case_id: str) -> dict | None:
     return _CASES.get(case_id)
 
 
+def reset() -> None:
+    _CASES.clear()
+
+
 def _client():
     global _bq, _bq_init
     if _bq_init:
