@@ -1,0 +1,11 @@
+{
+  "facts": "Acme Ltd (England) engaged Borealis Inc (Delaware, USA) to manufacture and deliver 10,000 turbine blades by 1 March, with a force majeure clause covering 'events beyond reasonable control'. Borealis delivered 60% of the order three weeks late and 8% of those were defective, citing a two-day strike at the loading port. Acme withheld the final 30% payment and now sues for breach. Borealis counterclaims for the withheld sum and pleads force majeure. A Nigerian subsidiary of Acme took partial delivery, raising a parallel question under Nigerian sale-of-goods law.",
+  "side": "claimant",
+  "jurisdictions": ["UK", "US", "Nigeria"],
+  "forum": "litigation",
+  "issues": [
+    "Whether late and partial delivery amounted to a repudiatory breach entitling Acme to terminate",
+    "Whether a two-day port strike triggers the force majeure clause",
+    "Whether Acme was entitled to withhold the final payment"
+  ]
+}
