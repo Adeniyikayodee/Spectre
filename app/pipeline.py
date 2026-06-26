@@ -11,7 +11,7 @@ import os
 import re
 import uuid
 
-from . import agents, graph, guardrails, research
+from . import agents, experience, graph, guardrails, research
 
 OPP = {"claimant": "defendant", "defendant": "claimant"}
 HEARING_ROUNDS = int(os.getenv("HEARING_ROUNDS", "2"))  # Du: 2-4 then plateau; 2 is cheapest valid
@@ -81,17 +81,24 @@ def stream_hearing(case: dict):
         yield _ev("phase_start", phase="hearing", issue=issue, label=f"Hearing: {issue}")
 
         # Planning + retrieval: which knowledge bases each side pulls from (AgentCourt).
-        bases = _plan_bases(case)
+        prior = experience.search(issue, side=you, limit=3)
+        bases = _plan_bases(prior)
         for label in ("your advocate", "opponent advocate"):
             yield _ev("agent_planning", role=label, issue=issue, bases=bases)
+        if prior:  # the learning loop: a past run's lessons, read back in
+            yield _ev("retrieval", knowledge_base="experience", issue=issue, query=issue,
+                      hits=[{"kind": p["kind"], "text": p["text"][:200]} for p in prior])
         authorities = research.find_authorities(issue, case["jurisdictions"])
         _annotate_authorities(issue, authorities, you)
         yield _ev("retrieval", knowledge_base="case_library", issue=issue, query=issue,
                   hits=[{"name": a.get("name"), "cite": a.get("cite")} for a in authorities])
 
-        # Precommit (Irving): both sides lock a position with a confidence.
+        # Precommit (Irving): both sides lock a position with a confidence. Your
+        # advocate folds in any lessons retrieved from the experience base.
+        lessons = _lessons(prior)
+        precommit = f"{ADVOCATE_RULES}\n\nIssue: {issue}\nPrecommit your position now, briefly."
         your_pre = agents.ask("advocate_you", _adv_sys(you, case),
-                              f"{ADVOCATE_RULES}\n\nIssue: {issue}\nPrecommit your position now, briefly.")
+                              f"{lessons}\n\n{precommit}" if lessons else precommit)
         yield _ev("agent_message", role="your advocate", side=you, issue=issue, round=0,
                   text=your_pre, confidence=_conf(your_pre))
         opp_pre = agents.ask("advocate_opp", _adv_sys(opp, case),
@@ -144,6 +151,7 @@ def stream_hearing(case: dict):
          "likelihood": h.get("likelihood"), "uncertainty": h.get("uncertainty")}
         for h in results
     ])
+    yield from _run_reflection(case, results)  # write lessons back to the bases
     yield _ev("done")
 
 
@@ -151,10 +159,17 @@ def _ev(type_: str, **payload) -> dict:
     return {"type": type_, **payload}
 
 
-def _plan_bases(case: dict) -> dict:
-    """Which of the three knowledge bases the agents query. Case library always;
-    legal when a forum/statute is in play; experience once prior runs exist."""
-    return {"legal": True, "case": True, "experience": False}
+def _plan_bases(prior: list) -> dict:
+    """Which of the three knowledge bases the agents query. Case library and legal
+    always; experience when prior runs left notes relevant to this issue."""
+    return {"legal": True, "case": True, "experience": bool(prior)}
+
+
+def _lessons(prior: list) -> str:
+    if not prior:
+        return ""
+    bullets = "\n".join(f"- ({p['kind']}) {p['text']}" for p in prior)
+    return f"Lessons from past similar cases (use them):\n{bullets}"
 
 
 def _conf(text: str | None) -> float | None:
@@ -176,6 +191,53 @@ def _score_debate(summary: str) -> dict:
         return {k: int(d.get(k, 0)) for k in keys}
     except Exception:
         return {k: 0 for k in keys}
+
+
+REFLECT_SYS = (
+    "You are a litigator writing a short post-trial reflection to file into a shared "
+    "experience base, so a future similar case can reuse it. Be concrete and brief."
+)
+
+
+def _run_reflection(case: dict, results: list[dict]):
+    """AgentCourt knowledge construction: each side writes a self-reflection and an
+    opponent-learning note into the experience base; emit a reflection_write per write."""
+    you = case["side"]
+    digest = _trial_digest(case, results)
+    issues = "; ".join(h["issue"] for h in results)
+    tags = issues + " " + " ".join(case.get("jurisdictions", []))
+    for side in (you, OPP.get(you, "opponent")):
+        raw = agents.ask(
+            "reflector", REFLECT_SYS,
+            f"You argued for the {side}. Trial:\n{digest}\n\nOutput exactly three lines:\n"
+            f"SELF: what worked and what to improve next time\n"
+            f"OPPONENT: what the other side did well that you should adopt\n"
+            f"SCENARIOS: comma-separated fact patterns where these lessons apply",
+        )
+        self_note = _grab(raw, "SELF:") or raw[:300]
+        opp_note = _grab(raw, "OPPONENT:")
+        scenarios = _grab(raw, "SCENARIOS:") or ""
+        experience.add(case["case_id"], side, issues, "self_reflection", self_note,
+                       tags + " " + scenarios)
+        yield _ev("reflection_write", base="experience", side=side,
+                  kind="self_reflection", text=self_note)
+        if opp_note:
+            experience.add(case["case_id"], side, issues, "opponent_learning", opp_note,
+                           tags + " " + scenarios)
+            yield _ev("reflection_write", base="experience", side=side,
+                      kind="opponent_learning", text=opp_note)
+    yield _ev("reflection_write", base="case_library",
+              text="Case and turning points written to the citation graph.")
+
+
+def _trial_digest(case: dict, results: list[dict]) -> str:
+    lines = []
+    for h in results:
+        auths = ", ".join(a.get("name") or a.get("cite", "")
+                          for a in h.get("authorities", []) if a.get("name") or a.get("cite"))
+        lines.append(f"- {h['issue']}: winner={h['winner']} "
+                     f"(confidence {h['confidence']}). Authorities: {auths}")
+    return f"Side argued: {case['side']}. Forum: {case['forum']}.\n" + "\n".join(lines)
 
 
 def _annotate_authorities(issue: str, authorities: list[dict], side: str) -> None:
