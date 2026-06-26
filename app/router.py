@@ -32,6 +32,7 @@ ROLES = {
     "judge_us":     ("claude",     "claude-opus-4-8"),
     "judge_ng":     ("nemotron",   NEMOTRON_MODEL),
     "referee":      ("claude",     "claude-sonnet-4-6"),
+    "reflector":    ("claude",     "claude-sonnet-4-6"),
     "appeal":       ("claude",     "claude-opus-4-8"),
     "strategist":   ("claude",     "claude-opus-4-8"),
 }
