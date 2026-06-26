@@ -1,0 +1,57 @@
+# Litigation War-Game Engine
+
+An adversarial, multi-model moot court that produces a lawyer-facing strategy
+playbook. Works for either side, across the UK, the US, and Nigeria, for both
+litigation and arbitration.
+
+Design: [`litigation_engine_design.md`](litigation_engine_design.md) ·
+Build plan: [`BUILD_PLAN.md`](BUILD_PLAN.md)
+
+## Run it (60 seconds, no keys needed)
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env            # leave blank to run on stubs; fill keys to go live
+uvicorn app.main:app --reload
+```
+
+```bash
+curl localhost:8000/health
+# end-to-end on the worked case:
+CID=$(curl -s -X POST localhost:8000/create_case \
+      -H 'content-type: application/json' \
+      -d @app/fixtures/uk_contract.json | python3 -c 'import sys,json;print(json.load(sys.stdin)["case_id"])')
+curl -s -X POST localhost:8000/run_hearing  -H 'content-type: application/json' -d "{\"case_id\":\"$CID\"}"
+curl -s -X POST localhost:8000/assess_appeal -H 'content-type: application/json' -d "{\"case_id\":\"$CID\"}"
+curl -s "localhost:8000/get_playbook?case_id=$CID"
+curl -s "localhost:8000/get_case_map?case_id=$CID"
+```
+
+With no keys set, every model call returns a clearly-marked `[stub:role]` string and
+the API still returns the correct JSON shape. Add a key to `.env` and that role goes
+live automatically — no code change.
+
+## What's wired vs. stubbed
+
+| Component | Status |
+|---|---|
+| Router and four providers (Claude, Gemini, Nemotron, Perplexity) | Real calls when keys are set; clear stubs otherwise |
+| Nemotron via NVIDIA-direct or OpenRouter, auto-detected; rate guard 50/day, 20/min, with cache | Implemented |
+| Game pipeline P0–P6 (precommit, two to four rounds, panel spread as confidence) | Runs end to end |
+| Authorities from Perplexity, parsed to name/cite/point and annotated by the turning-point analyst | Implemented |
+| Neo4j citation graph and load-bearing fault tree | In-memory calculation; best-effort persistence to Aura |
+| BigQuery store | Real append, guarded; a no-op until `GCP_PROJECT` is set |
+
+## Provider readiness
+
+```bash
+python -m app.scripts.smoke          # which integrations are configured
+python -m app.scripts.smoke --live   # actually ping the configured ones
+```
+
+## Deploy
+
+```bash
+./deploy.sh    # Cloud Run; keys via Secret Manager. See header of deploy.sh.
+```
