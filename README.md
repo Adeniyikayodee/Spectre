@@ -39,7 +39,7 @@ live automatically — no code change.
 | Router and four providers (Claude, Gemini, Nemotron, Perplexity) | Real calls when keys are set; clear stubs otherwise |
 | Nemotron via NVIDIA-direct or OpenRouter, auto-detected; rate guard 50/day, 20/min, with cache | Implemented |
 | Game pipeline P0–P6 (precommit, two to four rounds, panel spread as confidence) | Runs end to end |
-| Authorities from Perplexity, parsed to name/cite/point and annotated by the turning-point analyst | Implemented |
+| Authorities: hand-checked seed set for the worked case, else Perplexity live retrieval and the turning-point analyst | Implemented |
 | Neo4j citation graph and load-bearing fault tree | In-memory calculation; best-effort persistence to Aura |
 | BigQuery store | Real append, guarded; a no-op until `GCP_PROJECT` is set |
 | Experience base + post-verdict reflection (cross-run learning) | SQLite; a later run reads earlier runs' reflections |
