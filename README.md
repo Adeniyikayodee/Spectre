@@ -43,6 +43,28 @@ live automatically — no code change.
 | Neo4j citation graph and load-bearing fault tree | In-memory calculation; best-effort persistence to Aura |
 | BigQuery store | Real append, guarded; a no-op until `GCP_PROJECT` is set |
 
+## Live stream (front-end contract)
+
+`GET /run_hearing/stream?case_id=...` is Server-Sent Events: the hearing as it
+happens. The front end opens an `EventSource` and renders each typed event. The
+blocking `POST /run_hearing` returns the same result as one JSON body.
+
+| Event | Payload | Renders as |
+|---|---|---|
+| `clerk` | `text` | narrator line |
+| `phase_start` | `phase`, `issue`, `label` | new issue panel |
+| `agent_planning` | `role`, `issue`, `bases {legal, case, experience}` | which knowledge bases were queried |
+| `retrieval` | `knowledge_base`, `issue`, `query`, `hits[]` | the retrieval panel |
+| `agent_message` | `role`, `side`, `issue`, `round`, `text`, `confidence` | a speech bubble |
+| `panel_ruling` | `issue`, `jurisdiction`, `text` | lights the UK/US/NG judge |
+| `score_update` | `issue`, `scores {cognitive_agility, professional_knowledge, logical_rigor, overall}` | the scoreboard |
+| `verdict` | `outcomes[]` | the verdict screen |
+| `done` | none | close the stream |
+| `error` | `message` | a toast |
+
+Browser `EventSource` is GET-only, hence the query param. CORS is open; for hosted
+Lovable, point it at a public URL (Cloud Run, or `ngrok http 8000` while developing).
+
 ## Provider readiness
 
 ```bash
