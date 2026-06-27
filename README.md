@@ -106,6 +106,18 @@ passages back the proposition); second, added by the hearing, the panel spread (
 the judges were once the proposition is stress-tested). The first is how strong the proof
 is; the second is how contested it is.
 
+**From a list to a proof.** There is more and deeper design behind this than the static
+matrix above. A matrix on paper is a list. The deeper idea is to stress-test each
+proposition adversarially, and that test is grounded in published research rather than
+invented. AgentCourt (Chen et al., 2024, arXiv:2408.08089) is the courtroom-sandbox
+blueprint: lawyer and judge agents, side-swapping, three knowledge bases, and post-verdict
+reflection that grows an experience base. AI Safety via Debate (Irving, Christiano, and
+Amodei, 2018, arXiv:1805.00899) supplies the hearing rules: precommit a position, win by
+refuting the single strongest point, state confidence on each point, and use a panel. So a
+proposition that looks supported on paper can be shown vulnerable once the opponent agent
+attacks the adverse evidence and the gaps, and the panel rules on whether the proof
+survives. That is the difference between a list and a proof.
+
 Limitation: the retriever is keyword and term overlap, not embeddings. It is fast, cheap,
 and fully traceable, but it can miss evidence phrased in different words, which is why a
 proposition with no lexical match is flagged as a gap rather than assumed proven. Swapping
