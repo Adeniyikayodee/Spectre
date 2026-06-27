@@ -206,8 +206,10 @@ const tab = name => { for (const v of ['matrix','log']) document.getElementById(
 function log(author, text) {
   const el = document.getElementById('log'); if (!el) return;
   if (el.querySelector('p')) el.innerHTML = '';   // clear the placeholder on first entry
+  let t = String(text||'').replace(/\s+/g,' ').trim();   // one line, not a wall of text
+  if (t.length > 110) t = t.slice(0,110) + '…';
   const d = document.createElement('div'); d.className='logline';
-  d.innerHTML = `<b>${author}</b> ${String(text||'').replace(/</g,'&lt;')}`;
+  d.innerHTML = `<b>${author}</b> ${t.replace(/</g,'&lt;')}`;
   el.prepend(d);
 }
 function bubble(id, text, conf) {
