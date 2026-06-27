@@ -70,6 +70,11 @@
   #mbody li{margin:4px 0;line-height:1.45}
   .conf-badge{background:#efe7d4;color:#7a5a1e;font-size:11px;font-weight:700;padding:1px 7px;border-radius:9px;white-space:nowrap}
   .cite{text-decoration:underline;text-decoration-color:#B0894F;text-underline-offset:2px;color:#23306b}
+  .flag-fab{color:#b3261e;font-weight:700;background:#fbe6e4;padding:0 4px;border-radius:3px}
+  .st-supported{color:#2f7d4f;font-weight:700}
+  .st-adverse{color:#b3261e;font-weight:700}
+  .st-neutral{color:#5B6B7A;font-weight:700}
+  .st-missing{color:#9a6b16;font-weight:700}
 </style>
 <script type="importmap">
 { "imports": {
@@ -229,6 +234,11 @@ function setIdle(label){ document.getElementById('status').textContent=label; hb
 function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function _inlineMd(s){
   s = s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+  // flag fabricated / misstated / invented authorities in red
+  s = s.replace(/\b(does not exist(?: as authority)?|is (?:fabricated|invented|misstated|made up)|inventing a holding|no such (?:authority|case|holding)|fabricat\w+)\b/gi,
+                '<span class="flag-fab">$1</span>');
+  // status colours: supported green, adverse red, neutral grey, missing amber
+  s = s.replace(/\b(supported|adverse|neutral|missing)\b/gi, m => `<span class="st-${m.toLowerCase()}">${m}</span>`);
   s = s.replace(/\(?\b[Cc]onfidence\s+(0?\.\d+|1(?:\.0)?)\)?/g,'<span class="conf-badge">conf $1</span>');
   s = s.replace(/(\[\d{4}\][^,.;:\n]*?\d+)/g,'<span class="cite">$1</span>');   // [2020] EWCA Civ 1245
   return s;
