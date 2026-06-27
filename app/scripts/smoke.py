@@ -16,7 +16,7 @@ from app.router import call  # noqa: E402
 
 PROVIDERS = [
     ("claude (Anthropic)", claude, "intake"),
-    ("gemini (Vertex AI)", gemini, "judge_uk"),
+    ("gemini (Vertex/AI Studio)", gemini, "judge_uk"),
     ("nemotron (NVIDIA/OpenRouter)", nemotron, "advocate_opp"),
     ("perplexity", perplexity, "research"),
 ]
