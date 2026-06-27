@@ -3,127 +3,69 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Litigation War-Game — Courtroom</title>
+<title>SPECTRE — Litigation Intelligence</title>
 <!--
-  A thin view over the backend. It calls the real endpoints and renders the real event
-  stream; it never mocks agents or fakes the stream. Layout and colours follow the
-  AgentCourt courtroom: green lawn, a cream building, a wood floor, a raised three-judge
-  bench (UK, US, Nigeria), a court clerk desk, two red counsel podiums, a wooden bar, and
-  a tiled gallery. People are emoji placeholders; pixel-art sprites are for Lovable.
+  SPECTRE front end. A true 3D courtroom (three.js) that is a thin view over the
+  backend: it renders the real event stream and never fabricates data. Low-poly
+  figures stand at a judges' bench (UK, US Chief, NG), a witness stand, two counsel
+  tables (You, Opponent), a clerk, and a gallery. Name tags and speech bubbles are
+  HTML overlays (CSS2D); orbit and zoom with the mouse. The right panel holds the
+  pleading-to-proof matrix and the event log.
 -->
 <style>
-  :root{
-    --grass:#6f9b53; --grass2:#628c49; --wall:#e8e3d4; --wall2:#d3ccb8;
-    --floor:#7d5330; --floor2:#885d38; --bench:#5d3a26; --bench2:#6f4730;
-    --podium:#9b3a2c; --podium2:#7c2d22; --plaque:#caa35a; --bar:#7a4f30;
-    --tile:#d9d7cd; --tile2:#c9c7bb; --ink:#2a2030;
-  }
   *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,sans-serif}
-  body{margin:0;background:var(--grass);color:#1d2333}
-  header{display:flex;gap:8px;align-items:center;padding:10px 14px;background:#33502f;color:#eef;flex-wrap:wrap}
-  header h1{font-size:15px;margin:0 12px 0 0}
-  header input{padding:5px 8px;border-radius:6px;border:1px solid #2a3;width:220px}
-  button{padding:6px 12px;border:0;border-radius:6px;background:#dfe7c8;color:#243;font-weight:600;cursor:pointer}
-  button:hover{background:#cdd9aa}
-  button.go{background:#f0c869}
-  #status{margin-left:auto;font-size:12px;color:#cfe}
-  .app{display:flex;gap:12px;padding:12px;align-items:flex-start}
-
-  /* ---- the scene: lawn + building ---- */
-  .scene{flex:3;background:
-      radial-gradient(circle at 20% 30%, var(--grass2) 0 2px, transparent 3px) 0 0/26px 26px,
-      var(--grass);
-    border-radius:14px;padding:18px;min-height:640px;position:relative;overflow:hidden}
-  .tree{position:absolute;font-size:30px;filter:saturate(.8)}
-  .building{position:relative;background:var(--wall);border:10px solid var(--wall2);border-radius:6px;
-    padding:34px 18px 0;max-width:560px;margin:0 auto}
-  .deco{position:absolute;font-size:20px}
-  .deco.tl{top:6px;left:10px}.deco.tr{top:6px;right:10px}
-  .deco.sl{top:6px;left:64px}.deco.sr{top:6px;right:64px}
-  .deco.clock{top:2px;left:50%;transform:translateX(-50%);font-size:22px}
-
-  .floor{background:repeating-linear-gradient(0deg,var(--floor) 0 22px,var(--floor2) 22px 24px);
-    border-radius:4px;padding:14px 12px 0}
-
-  /* ---- judges' bench ---- */
-  .bench{background:linear-gradient(180deg,var(--bench2),var(--bench));border-radius:12px 12px 8px 8px;
-    padding:12px 10px 8px;box-shadow:inset 0 -6px 0 #4a2d1c;max-width:430px;margin:0 auto}
-  .judges{display:flex;justify-content:center;gap:18px}
-  .seat{width:62px;height:62px;border-radius:8px 8px 4px 4px;background:#7a4a30;display:flex;align-items:center;
-    justify-content:center;font-size:30px;box-shadow:inset 0 0 0 3px #4e2f1d}
-  .judge.chief .seat{background:#8a5436;width:70px;height:70px;font-size:34px}
-  .plaques{display:flex;justify-content:center;gap:10px;margin-top:8px}
-  .plaques span{background:var(--plaque);color:#3a2a14;font-size:9px;font-weight:800;letter-spacing:.5px;
-    padding:2px 8px;border-radius:3px;box-shadow:inset 0 0 0 1px #8a6a32}
-
-  /* ---- clerk desk ---- */
-  .clerk-area{display:flex;justify-content:center;margin:14px 0 8px;position:relative}
-  .clerk{background:linear-gradient(180deg,#7a4a30,#5d3a26);border-radius:10px;padding:8px 14px 6px;text-align:center;
-    box-shadow:inset 0 -5px 0 #4a2d1c}
-  .clerk .figs{font-size:26px}
-  .plaque-sm{background:var(--plaque);color:#3a2a14;font-size:9px;font-weight:800;letter-spacing:.5px;
-    padding:2px 10px;border-radius:3px;margin-top:4px;display:inline-block}
-
-  /* ---- the well: monitor + two red counsel podiums ---- */
-  .well{display:flex;justify-content:space-between;align-items:flex-end;margin:6px 6px 0}
-  .monitor{font-size:26px;align-self:center}
-  .podium{background:linear-gradient(180deg,var(--podium),var(--podium2));width:120px;height:78px;border-radius:8px;
-    color:#fff;text-align:center;padding:6px 6px 0;box-shadow:inset 0 -6px 0 #5e221a;position:relative}
-  .podium .who{font-size:9px;font-weight:800;letter-spacing:.5px;opacity:.95}
-  .podium .pp{font-size:24px;margin-top:4px}
-
-  /* ---- wooden bar / railing ---- */
-  .bar{height:16px;margin:14px 4px 0;border-radius:4px;
-    background:repeating-linear-gradient(90deg,var(--bar) 0 20px,#5e3c24 20px 24px)}
-
-  /* ---- gallery on tiled floor + entrance ---- */
-  .gallery{background:
-      repeating-linear-gradient(0deg,var(--tile) 0 16px,var(--tile2) 16px 17px),
-      repeating-linear-gradient(90deg,var(--tile) 0 16px,var(--tile2) 16px 17px);
-    margin:8px 4px 0;border-radius:4px;padding:10px 8px;text-align:center;position:relative}
-  .benchrow{font-size:20px;letter-spacing:6px;margin:4px 0}
-  .tripod{font-size:18px}
-  .entrance{height:40px;margin:0 auto;width:120px;
-    background:repeating-linear-gradient(0deg,#cfcdc2 0 8px,#bdbbB0 8px 10px)}
-
-  /* ---- speech bubbles ---- */
-  .bubble{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:108%;
-    background:#fff;color:#222;border-radius:8px;padding:6px 8px;font-size:11px;width:180px;text-align:left;
-    box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:5;max-height:130px;overflow:auto}
-  .bubble:after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);
-    border:6px solid transparent;border-top-color:#fff}
-  .bubble.show{display:block}
-  .bubble .conf{color:#888;font-size:9px;margin-top:2px}
-  .actor{position:relative}
-  .actor.speaking .seat,.actor.speaking .podium,.actor.speaking .clerk{outline:3px solid #f0c869}
-
-  /* ---- side panel: matrix + log ---- */
-  .panel{flex:2;background:#f4f6ec;border-radius:14px;padding:12px;min-height:640px;max-height:88vh;overflow:auto}
+  body{margin:0;background:#1b1f26;color:#1d2333;overflow:hidden}
+  header{display:flex;gap:8px;align-items:center;padding:9px 14px;background:#1e2a38;color:#eef;height:52px}
+  header h1{font-size:17px;margin:0;letter-spacing:3px;font-weight:800;color:#f3eee2}
+  header .sub{font-size:10px;letter-spacing:2px;color:#b0894f;margin:0 14px 0 0}
+  header input{padding:5px 8px;border-radius:6px;border:1px solid #2a3a4a;width:200px;background:#16202b;color:#cde}
+  button{padding:6px 12px;border:0;border-radius:6px;background:#2e4257;color:#dfe;font-weight:600;cursor:pointer}
+  button:hover{background:#3a5169}
+  button.go{background:#b0894f;color:#1b1410}
+  #status{margin-left:auto;font-size:12px;color:#9fb}
+  .app{display:flex;height:calc(100vh - 52px)}
+  #scene{flex:3;position:relative;background:#cfc6b3}
+  #scene canvas{display:block}
+  .labels{position:absolute;inset:0;pointer-events:none}
+  .tag{background:#1e2a38;color:#fff;font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 7px;border-radius:10px;white-space:nowrap;transform:translateY(-4px)}
+  .tag .chief{color:#caa35a;margin-left:3px;font-weight:600}
+  .bubble3d{display:none;background:#fff;color:#222;font-size:11px;line-height:1.3;padding:6px 9px;border-radius:8px;width:190px;max-height:120px;overflow:auto;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+  .bubble3d.show{display:block}
+  .bubble3d .c{color:#888;font-size:9px}
+  #phase{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#1e2a38;color:#f3eee2;
+    font-size:12px;font-weight:700;letter-spacing:2px;padding:7px 18px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  #hint{position:absolute;bottom:8px;left:10px;font-size:10px;color:#5a513f}
+  .panel{flex:2;background:#f6f4ef;padding:12px;overflow:auto;height:100%}
   .tabs{display:flex;gap:6px;margin-bottom:8px}
-  .tabs button{background:#e2e7d0}
-  .tabs button.active{background:#f0c869}
+  .tabs button{background:#e7e2d2;color:#33414f}
+  .tabs button.active{background:#b0894f;color:#1b1410}
   .view{display:none}.view.active{display:block}
-  .prop{border-left:6px solid #999;background:#fff;border-radius:8px;padding:9px;margin-bottom:9px}
-  .prop.supported{border-color:#2f9e44}.prop.adverse{border-color:#e03131}
-  .prop.neutral{border-color:#868e96}.prop.missing{border-color:#f08c00}
+  .prop{border-left:6px solid #5B6B7A;background:#fff;border-radius:8px;padding:9px;margin-bottom:9px}
+  .prop.supported{border-color:#4F7A66}.prop.adverse{border-color:#8C3B3B}
+  .prop.neutral{border-color:#5B6B7A}.prop.missing{border-color:#C08A2E}
   .prop .top{display:flex;justify-content:space-between;font-size:11px;font-weight:700;text-transform:uppercase}
   .prop .txt{font-size:13px;margin:4px 0}.prop .el{font-size:11px;color:#555}
   .src{display:inline-block;font-size:11px;background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 6px;margin:3px 3px 0 0;cursor:pointer}
   .src.adverse{background:#fee;border-color:#e9b}
   .gap{font-size:11px;color:#b06b00;margin-top:5px}
-  .logline{font-size:12px;padding:4px 2px;border-bottom:1px solid #e3e6d8}
-  .logline b{color:var(--ink)}
+  .logline{font-size:12px;padding:4px 2px;border-bottom:1px solid #e6e2d4}
+  .logline b{color:#1E2A38}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
   .modal.open{display:flex}
   .modal .box{background:#fff;max-width:560px;max-height:70vh;overflow:auto;padding:16px;border-radius:10px}
   .modal h3{margin:0 0 8px;font-size:14px}
-  .disclaimer{font-size:10px;color:#cfe;padding:4px 14px}
 </style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
 </head>
 <body>
 <header>
-  <h1>⚖️ Litigation War-Game</h1>
-  <label>Backend <input id="backend" value="http://localhost:8077" /></label>
+  <h1>SPECTRE</h1><span class="sub">LITIGATION INTELLIGENCE</span>
+  <label style="color:#9bb;font-size:11px">Backend <input id="backend" value="http://localhost:8077" /></label>
   <button onclick="loadCase()">1. Load case</button>
   <button onclick="buildMatrix()">2. Build matrix</button>
   <button onclick="runHearing()">3. Run hearing</button>
@@ -133,151 +75,152 @@
 </header>
 
 <div class="app">
-  <!-- The courtroom scene -->
-  <div class="scene">
-    <div class="tree" style="top:8px;left:6px">🌳</div><div class="tree" style="top:8px;right:6px">🌳</div>
-    <div class="tree" style="bottom:8px;left:6px">🌲</div><div class="tree" style="bottom:8px;right:6px">🌲</div>
-    <div class="building">
-      <div class="deco tl">📹</div><div class="deco tr">📹</div>
-      <div class="deco sl">🔊</div><div class="deco sr">🔊</div>
-      <div class="deco clock">🕙</div>
-      <div class="floor">
-        <!-- judges' bench -->
-        <div class="bench">
-          <div class="judges">
-            <div class="actor judge" id="judge_uk"><div class="seat">🧑‍⚖️</div><div class="bubble"></div></div>
-            <div class="actor judge chief" id="judge_us"><div class="seat">🧑‍⚖️</div><div class="bubble"></div></div>
-            <div class="actor judge" id="judge_ng"><div class="seat">🧑‍⚖️</div><div class="bubble"></div></div>
-          </div>
-          <div class="plaques"><span>JUDGE · UK</span><span>CHIEF JUDGE · US</span><span>JUDGE · NG</span></div>
-        </div>
-        <!-- court clerk -->
-        <div class="clerk-area">
-          <div class="actor clerk" id="clerk"><div class="bubble"></div><div class="figs">🧑‍💼 👩‍💼</div><div class="plaque-sm">COURT CLERK</div></div>
-        </div>
-        <!-- counsel podiums -->
-        <div class="well">
-          <div style="display:flex;align-items:flex-end;gap:6px"><div class="monitor">🖥️</div>
-            <div class="actor podium" id="advocate_you"><div class="who">YOUR SIDE · CLAIMANT</div><div class="pp">🧑‍⚖️</div><div class="bubble"></div></div></div>
-          <div class="actor podium" id="advocate_opp"><div class="who">OPPONENT · DEFENDANT</div><div class="pp">🧑‍⚖️</div><div class="bubble"></div></div>
-        </div>
-        <!-- bar / railing -->
-        <div class="bar"></div>
-        <!-- gallery -->
-        <div class="gallery">
-          <div class="benchrow">🧑 👩 🧑 👨 🧑 👩</div>
-          <div class="tripod">📷</div>
-          <div class="benchrow">👨 👩 🧑 👨 👩 🧑</div>
-        </div>
-      </div>
-      <div class="entrance"></div>
-    </div>
-    <div class="disclaimer">Decision support, not legal advice. Every status links to a real document and paragraph.</div>
+  <div id="scene">
+    <div id="phase">PHASE · INTAKE</div>
+    <div id="hint">drag to orbit · scroll to zoom</div>
   </div>
-
-  <!-- The side panel: case setup + matrix + event log -->
   <div class="panel">
     <div class="tabs">
       <button class="active" onclick="tab('matrix')">Pleading-to-proof matrix</button>
       <button onclick="tab('log')">Event log</button>
     </div>
     <div id="matrix" class="view active"><p style="font-size:12px;color:#777">Build the matrix to see each pleaded proposition tested against the real documents.</p></div>
-    <div id="log" class="view"><p style="font-size:12px;color:#777">Run the hearing to see every statement, ruling, and reflection here.</p></div>
+    <div id="log" class="view"><p style="font-size:12px;color:#777">Run the hearing to see every statement and ruling here.</p></div>
   </div>
 </div>
 
 <div class="modal" id="modal" onclick="this.classList.remove('open')"><div class="box" onclick="event.stopPropagation()"><h3 id="mtitle"></h3><div id="mbody" style="font-size:13px;white-space:pre-wrap"></div></div></div>
 
-<script>
-let caseId = null;
-// The worked case the bundle is built from. Load case posts this; the matrix reads the bundle.
-function caseBody() {
-  return {
-    facts: "Meridian Retail (claimant) engaged TechFlow Solutions (defendant) under a Master Services Agreement to build a retail platform. Meridian alleges late delivery, defective software causing outages during peak trading, and a pre-contract misrepresentation about transaction capacity, claiming wasted expenditure and loss of profit. TechFlow denies breach.",
-    side: "claimant", jurisdictions: ["UK", "US", "Nigeria"], forum: "litigation",
-  };
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+const sceneEl = document.getElementById('scene');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xd7cdb8);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+camera.position.set(0.5, 7, 10.5);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.shadowMap.enabled = true;
+sceneEl.appendChild(renderer.domElement);
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labels';
+sceneEl.appendChild(labelRenderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.2, -3); controls.enableDamping = true; controls.maxPolarAngle = Math.PI/2.05;
+
+scene.add(new THREE.AmbientLight(0xfff2e0, 0.85));
+const key = new THREE.DirectionalLight(0xfff0d8, 1.0); key.position.set(6, 12, 8); key.castShadow = true; scene.add(key);
+
+// room: floor + walls
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({color:0x6e4a30}));
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
+function wall(w,h,x,y,z,ry){ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshStandardMaterial({color:0xe7dfce,side:THREE.DoubleSide})); m.position.set(x,y,z); m.rotation.y=ry; scene.add(m); }
+wall(40,16,0,8,-13,0); wall(28,16,-14,8,0,Math.PI/2); wall(28,16,14,8,0,Math.PI/2);
+
+function box(w,h,d,x,y,z,color){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({color})); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; scene.add(m); return m; }
+
+// bench: platform + desk front
+box(10,0.5,2.4,0,0.25,-8,0x5a3f29);
+box(9,1.2,0.7,0,1.1,-6.9,0x4a3526);
+
+const actors = {};
+function figure(color, label, chief){
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({color});
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.30, 0.62, 6, 14), bodyMat); body.position.y=0.62; body.castShadow=true; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.27,18,18), new THREE.MeshStandardMaterial({color:0xe7d9c2})); head.position.y=1.28; head.castShadow=true; g.add(head);
+  const tag = document.createElement('div'); tag.className='tag'; tag.innerHTML = label + (chief?' <span class="chief">Chief</span>':'');
+  const tagObj = new CSS2DObject(tag); tagObj.position.set(0,1.95,0); g.add(tagObj);
+  const bub = document.createElement('div'); bub.className='bubble3d';
+  const bubObj = new CSS2DObject(bub); bubObj.position.set(0,2.5,0); g.add(bubObj);
+  g.userData = {body, bodyMat, bub};
+  scene.add(g);
+  return g;
 }
+function place(id, color, label, x, y, z, chief){ const g=figure(color,label,chief); g.position.set(x,y,z); actors[id]={g, body:g.userData.body, mat:g.userData.bodyMat, bub:g.userData.bub}; return g; }
+
+// the bench (judges stand on the platform), a witness, a clerk, two counsel, a gallery
+place('judge_uk', 0x3f4a57, 'UK',  -2.4, 0.5, -7.7);
+place('judge_us', 0x5f8f81, 'US',   0.0, 0.5, -8.0, true);
+place('judge_ng', 0x5a7d55, 'NG',   2.4, 0.5, -7.7);
+box(1.6,1.0,1.1, 5.0,0.5,-5.0, 0x4a3526); place('witness', 0xc0972e, 'WIT', 5.0, 0, -5.5);
+box(1.8,0.9,1.0, -5.0,0.45,-3.0, 0x3e2c1e); place('clerk', 0x415a74, 'CLK', -5.0, 0, -3.6);
+box(2.6,0.7,1.3, -1.8,0.6,-0.6, 0x3e2c1e); place('advocate_you', 0x2f4d72, 'YOU', -1.8, 0, 0.2);
+box(2.6,0.7,1.3,  2.4,0.6,-1.6, 0x3e2c1e); place('advocate_opp', 0x8c3b3b, 'OPP', 2.4, 0, -0.8);
+// rail + gallery
+box(12,0.6,0.2, 0,0.6,2.4, 0x6b4a30);
+for(let r=0;r<2;r++) for(let i=0;i<7;i++){ const x=-5.4+i*1.8, z=3.6+r*1.6; const f=figure(0x14171c,''); f.position.set(x,0,z); f.scale.set(0.9,0.9,0.9); f.userData.bub.parentNode && f.children.forEach(c=>{if(c.element&&c.element.className==='tag')c.visible=false;}); }
+
+function resize(){ const w=sceneEl.clientWidth, h=sceneEl.clientHeight; renderer.setSize(w,h); labelRenderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+(function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); labelRenderer.render(scene,camera); })();
+
+// ---- bubbles + highlight driven by the event stream ----
+function clearSpeakers(){ for(const k in actors){ actors[k].bub.classList.remove('show'); actors[k].mat.emissive.setHex(0x000000); } }
+window.bubble = (id, text, conf) => {
+  clearSpeakers(); const a = actors[id]; if(!a) return;
+  let t = String(text||''); if(t.length>240) t=t.slice(0,240)+'…';
+  a.bub.innerHTML = t.replace(/</g,'&lt;') + (conf!=null?`<div class="c">confidence ${conf}</div>`:'');
+  a.bub.classList.add('show'); a.mat.emissive.setHex(0xb0894f); a.mat.emissiveIntensity=0.5;
+};
+window.setPhase = p => document.getElementById('phase').textContent = 'PHASE · ' + String(p||'').toUpperCase();
+window.clearScene = () => { clearSpeakers(); for(const k in actors) actors[k].bub.innerHTML=''; setPhase('intake'); };
+
+// ---- backend wiring (REST + SSE), unchanged logic ----
+let caseId = null;
+function caseBody(){ return { facts:"Meridian Retail (claimant) engaged TechFlow Solutions (defendant) under a Master Services Agreement to build a retail platform. Meridian alleges late delivery, defective software causing outages during peak trading, and a pre-contract misrepresentation about transaction capacity, claiming wasted expenditure and loss of profit. TechFlow denies breach.", side:"claimant", jurisdictions:["UK","US","Nigeria"], forum:"litigation" }; }
 const api = p => document.getElementById('backend').value.replace(/\/$/,'') + p;
 const setStatus = t => document.getElementById('status').textContent = t;
-const tab = name => { for (const v of ['matrix','log']) document.getElementById(v).classList.toggle('active', v===name);
-  document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('active', (i===0)===(name==='matrix'))); };
+window.tab = name => { for(const v of ['matrix','log']) document.getElementById(v).classList.toggle('active', v===name);
+  document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('active',(i===0)===(name==='matrix'))); };
+function log(author, text){ const el=document.getElementById('log'); if(!el) return; if(el.querySelector('p')) el.innerHTML='';
+  let t=String(text||'').replace(/\s+/g,' ').trim(); if(t.length>110) t=t.slice(0,110)+'…';
+  const d=document.createElement('div'); d.className='logline'; d.innerHTML=`<b>${author}</b> ${t.replace(/</g,'&lt;')}`; el.prepend(d); }
 
-// The full event log: every statement, ruling, score, and reflection, newest first.
-function log(author, text) {
-  const el = document.getElementById('log'); if (!el) return;
-  if (el.querySelector('p')) el.innerHTML = '';   // clear the placeholder on first entry
-  let t = String(text||'').replace(/\s+/g,' ').trim();   // one line, not a wall of text
-  if (t.length > 110) t = t.slice(0,110) + '…';
-  const d = document.createElement('div'); d.className='logline';
-  d.innerHTML = `<b>${author}</b> ${t.replace(/</g,'&lt;')}`;
-  el.prepend(d);
-}
-function bubble(id, text, conf) {
-  const el = document.getElementById(id); if (!el) return;
-  document.querySelectorAll('.actor').forEach(a=>a.classList.remove('speaking'));
-  document.querySelectorAll('.bubble').forEach(b=>b.classList.remove('show'));
-  el.classList.add('speaking');
-  const short = (text||'').length > 160 ? text.slice(0,160)+'…' : (text||'');
-  const b = el.querySelector('.bubble');
-  b.innerHTML = short + (conf!=null ? `<div class="conf">conf ${conf}</div>`:'');
-  b.classList.add('show');
-}
+window.loadCase = async () => { resetAll(true);
+  const r=await fetch(api('/create_case'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(caseBody())});
+  const j=await r.json(); caseId=j.case_id; setStatus('case '+caseId); setPhase('intake'); log('Clerk','Case filed. Ready to build the matrix.'); };
 
-async function loadCase() {
-  resetAll(true);
-  const r = await fetch(api('/create_case'), {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(caseBody())});
-  const j = await r.json(); caseId = j.case_id; setStatus('case ' + caseId); log('Clerk','Case filed. Ready to build the matrix.');
-}
+function stream(path, onDone){ return new Promise(resolve=>{
+  const es=new EventSource(api(path+(path.includes('?')?'&':'?')+'case_id='+caseId));
+  const close=()=>{es.close();resolve();if(onDone)onDone();};
+  es.addEventListener('phase_start', e=>{ const d=JSON.parse(e.data); setPhase(d.phase); log('—', d.label||d.phase); });
+  es.addEventListener('clerk', e=>{ const t=JSON.parse(e.data).text; bubble('clerk',t); log('Clerk',t); });
+  es.addEventListener('evidence_mapped', e=>{ const d=JSON.parse(e.data); renderProp(d); log(`Matrix · ${d.id} (${d.status})`, d.proposition); });
+  es.addEventListener('agent_message', e=>{ const d=JSON.parse(e.data); const id=d.role&&d.role.includes('opponent')?'advocate_opp':'advocate_you';
+    bubble(id,d.text,d.confidence); log(`${d.role}${d.round?' · round '+d.round:''}`, d.text); });
+  es.addEventListener('panel_ruling', e=>{ const d=JSON.parse(e.data); bubble('judge_'+d.jurisdiction,d.text); log('Judge '+d.jurisdiction.toUpperCase(), d.text); });
+  es.addEventListener('score_update', e=>{ const d=JSON.parse(e.data); log('Referee', JSON.stringify(d.scores)); });
+  es.addEventListener('verdict', e=>{ setPhase('verdict'); log('Verdict', JSON.stringify(JSON.parse(e.data).outcomes||[])); });
+  es.addEventListener('reflection_write', e=>{ const d=JSON.parse(e.data); log('Reflection ('+d.base+')', d.text); });
+  es.addEventListener('error', e=>{ try{log('Error',JSON.parse(e.data).message);}catch{} close(); });
+  es.addEventListener('done', close);
+}); }
 
-function stream(path, onDone) {
-  return new Promise(resolve => {
-    const es = new EventSource(api(path + (path.includes('?')?'&':'?') + 'case_id=' + caseId));
-    const close = () => { es.close(); resolve(); if(onDone) onDone(); };
-    es.addEventListener('phase_start', e => log('—', JSON.parse(e.data).label || 'phase'));
-    es.addEventListener('clerk', e => { const t=JSON.parse(e.data).text; bubble('clerk',t); log('Clerk', t); });
-    es.addEventListener('evidence_mapped', e => { const d=JSON.parse(e.data); renderProp(d);
-      log(`Matrix · ${d.id} (${d.status})`, d.proposition); });
-    es.addEventListener('agent_message', e => { const d=JSON.parse(e.data);
-      const id = d.role && d.role.includes('opponent') ? 'advocate_opp' : 'advocate_you';
-      bubble(id, d.text, d.confidence);
-      log(`${d.role}${d.round?' · round '+d.round:''}`, d.text); });
-    es.addEventListener('panel_ruling', e => { const d=JSON.parse(e.data);
-      bubble('judge_'+d.jurisdiction, d.text); log('Judge '+d.jurisdiction.toUpperCase(), d.text); });
-    es.addEventListener('score_update', e => { const d=JSON.parse(e.data); log('Referee', JSON.stringify(d.scores)); });
-    es.addEventListener('verdict', e => log('Verdict', JSON.stringify(JSON.parse(e.data).outcomes||[]).slice(0,200)));
-    es.addEventListener('reflection_write', e => { const d=JSON.parse(e.data); log('Reflection ('+d.base+')', (d.text||'').slice(0,80)); });
-    es.addEventListener('error', e => { try{log('Error', JSON.parse(e.data).message);}catch{} close(); });
-    es.addEventListener('done', close);
-  });
-}
-
-function buildMatrix() { if(!caseId) return alert('Load a case first'); setStatus('building matrix…');
+window.buildMatrix = () => { if(!caseId) return alert('Load a case first'); setStatus('building matrix…'); setPhase('matrix');
   document.getElementById('matrix').innerHTML=''; tab('matrix');
-  return stream('/build_matrix/stream', ()=>setStatus('matrix ready · case '+caseId)); }
+  return stream('/build_matrix/stream', ()=>setStatus('matrix ready · case '+caseId)); };
+window.runHearing = () => { if(!caseId) return alert('Load a case first'); setStatus('hearing in session…'); setPhase('hearing');
+  return stream('/run_hearing/stream', ()=>setStatus('hearing done · case '+caseId)); };
+window.runAll = async () => { await loadCase(); await buildMatrix(); await runHearing(); };
 
-function runHearing() { if(!caseId) return alert('Load a case first'); setStatus('hearing in session…');
-  return stream('/run_hearing/stream', ()=>setStatus('hearing done · case '+caseId)); }
+function renderProp(d){ const c=document.createElement('div'); c.className='prop '+(d.status||'neutral');
+  const srcs=(d.sources||[]).map(s=>`<span class="src ${s.kind}" onclick='showSrc(${JSON.stringify(s).replace(/'/g,"&#39;")})'>${s.doc} ¶${s.para}</span>`).join('');
+  c.innerHTML=`<div class="top"><span>${d.id} · ${d.status}</span><span>conf ${d.confidence ?? '—'}</span></div>
+    <div class="txt">${d.proposition||''}</div><div class="el">element: ${d.legal_element||''}</div><div>${srcs}</div>${d.gap?`<div class="gap">gap: ${d.gap}</div>`:''}`;
+  document.getElementById('matrix').appendChild(c); }
+window.showSrc = s => { document.getElementById('mtitle').textContent=s.doc+' — paragraph '+s.para+' ('+s.kind+')';
+  document.getElementById('mbody').textContent=s.quote||'(quote unavailable)'; document.getElementById('modal').classList.add('open'); };
 
-async function runAll() { await loadCase(); await buildMatrix(); await runHearing(); }
-
-function renderProp(d) {
-  const c = document.createElement('div'); c.className = 'prop ' + (d.status||'neutral');
-  const srcs = (d.sources||[]).map(s=>`<span class="src ${s.kind}" onclick='showSrc(${JSON.stringify(s).replace(/'/g,"&#39;")})'>${s.doc} ¶${s.para}</span>`).join('');
-  c.innerHTML = `<div class="top"><span>${d.id} · ${d.status}</span><span>conf ${d.confidence ?? '—'}</span></div>
-    <div class="txt">${d.proposition||''}</div><div class="el">element: ${d.legal_element||''}</div>
-    <div>${srcs}</div>${d.gap?`<div class="gap">gap: ${d.gap}</div>`:''}`;
-  document.getElementById('matrix').appendChild(c);
-}
-function showSrc(s) { document.getElementById('mtitle').textContent = s.doc + ' — paragraph ' + s.para + ' (' + s.kind + ')';
-  document.getElementById('mbody').textContent = s.quote || '(quote unavailable)';
-  document.getElementById('modal').classList.add('open'); }
-
-function resetAll(keepCase) {
+window.resetAll = (keepCase) => {
   document.getElementById('matrix').innerHTML=''; const lg=document.getElementById('log'); if(lg) lg.innerHTML='';
-  document.querySelectorAll('.bubble').forEach(b=>{b.innerHTML='';b.classList.remove('show')});
-  document.querySelectorAll('.actor').forEach(a=>a.classList.remove('speaking'));
+  clearScene();
   if(!keepCase){ caseId=null; setStatus('no case'); fetch(api('/reset_demo'),{method:'POST'}).catch(()=>{}); }
-}
+};
 </script>
 </body>
 </html>
