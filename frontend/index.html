@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SPECTRE — Litigation Intelligence</title>
+<title>SPECTRE</title>
 <!--
   SPECTRE front end. A true 3D courtroom (three.js) that is a thin view over the
   backend: it renders the real event stream and never fabricates data. Low-poly
@@ -70,7 +70,7 @@
 </head>
 <body>
 <header>
-  <h1>SPECTRE</h1><span class="sub">LITIGATION INTELLIGENCE</span>
+  <h1>SPECTRE</h1>
   <label style="color:#9bb;font-size:11px">Backend <input id="backend" value="http://localhost:8077" /></label>
   <button onclick="loadCase()">1. Load case</button>
   <button onclick="buildMatrix()">2. Build matrix</button>
@@ -213,7 +213,8 @@ window.tab = name => { for(const v of ['matrix','log']) document.getElementById(
   document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('active',(i===0)===(name==='matrix'))); };
 function log(author, text){ const el=document.getElementById('log'); if(!el) return; if(el.querySelector('p')) el.innerHTML='';
   let t=String(text||'').replace(/\s+/g,' ').trim(); if(t.length>110) t=t.slice(0,110)+'…';
-  const d=document.createElement('div'); d.className='logline'; d.innerHTML=`<b>${author}</b> ${t.replace(/</g,'&lt;')}`; el.prepend(d); }
+  const d=document.createElement('div'); d.className='logline'; d.innerHTML=`<b>${author}</b> ${t.replace(/</g,'&lt;')}`; el.prepend(d);
+  const p=el.closest('.panel'); if(p) p.scrollTop=0; }   // follow the newest line
 
 window.loadCase = async () => { resetAll(true); setBusy('Filing case · reading the bundle…'); setPhase('intake');
   try {
@@ -241,7 +242,7 @@ function stream(path, onDone){ return new Promise(resolve=>{
 window.buildMatrix = () => { if(!caseId) return alert('Load a case first'); setBusy('Reading the bundle · mapping evidence…'); setPhase('matrix');
   document.getElementById('matrix').innerHTML=''; tab('matrix');
   return stream('/build_matrix/stream', ()=>setIdle('matrix ready · case '+caseId)); };
-window.runHearing = () => { if(!caseId) return alert('Load a case first'); setBusy('Hearing in session…'); setPhase('hearing');
+window.runHearing = () => { if(!caseId) return alert('Load a case first'); setBusy('Hearing in session…'); setPhase('hearing'); tab('log');
   return stream('/run_hearing/stream', ()=>setIdle('hearing done · case '+caseId)); };
 window.runAll = async () => { await loadCase(); await buildMatrix(); await runHearing(); };
 
