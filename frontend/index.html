@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Litigation War-Game — Courtroom</title>
+<!--
+  A thin view over the backend. It calls the real endpoints and renders the real
+  event stream; it does not mock agents, fake the stream, or invent capability.
+  Layout mirrors the AgentCourt courtroom: a three-judge bench (UK, US, Nigeria),
+  two counsel tables, a clerk, and a gallery, with a side panel that builds the
+  pleading-to-proof matrix and logs the hearing. Pixel-art polish is for Lovable;
+  this is the working reference.
+-->
+<style>
+  :root { --grass:#6f9b53; --court:#5e4534; --wood:#7b5b41; --ink:#23306b; }
+  * { box-sizing: border-box; font-family: ui-sans-serif, system-ui, sans-serif; }
+  body { margin:0; background:var(--grass); color:#1d2333; }
+  header { display:flex; gap:8px; align-items:center; padding:10px 14px; background:#33502f; color:#eef; flex-wrap:wrap; }
+  header h1 { font-size:15px; margin:0 12px 0 0; }
+  header input { padding:5px 8px; border-radius:6px; border:1px solid #2a3; width:230px; }
+  button { padding:6px 12px; border:0; border-radius:6px; background:#dfe7c8; color:#243; font-weight:600; cursor:pointer; }
+  button:hover { background:#cdd9aa; }
+  button.go { background:#f0c869; }
+  #status { margin-left:auto; font-size:12px; color:#cfe; }
+  .app { display:flex; gap:12px; padding:12px; align-items:flex-start; }
+  .courtroom { flex:3; background:var(--court); border-radius:14px; padding:16px; min-height:560px; box-shadow:inset 0 0 0 4px #4a3526; }
+  .bench { display:flex; gap:10px; justify-content:center; }
+  .clerk-row { display:flex; justify-content:center; margin:14px 0; }
+  .tables { display:flex; justify-content:space-between; margin-top:14px; gap:14px; }
+  .gallery { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:18px; opacity:.85; }
+  .gallery span { font-size:20px; }
+  .actor { background:var(--wood); border-radius:10px; padding:8px; width:150px; text-align:center; color:#f6efe6; box-shadow:inset 0 0 0 2px #5e442f; }
+  .actor.you { width:46%; } .actor.opp { width:46%; }
+  .actor .who { font-size:11px; letter-spacing:.5px; opacity:.85; }
+  .actor .av { font-size:30px; line-height:1.1; }
+  .actor.speaking { outline:3px solid #f0c869; }
+  .bubble { background:#fff; color:#222; border-radius:8px; padding:7px 9px; font-size:12px; margin-top:6px; min-height:18px; text-align:left; max-height:150px; overflow:auto; }
+  .bubble .conf { color:#777; font-size:10px; }
+  .panel { flex:2; background:#f4f6ec; border-radius:14px; padding:12px; min-height:560px; max-height:88vh; overflow:auto; }
+  .tabs { display:flex; gap:6px; margin-bottom:8px; }
+  .tabs button { background:#e2e7d0; }
+  .tabs button.active { background:#f0c869; }
+  .view { display:none; } .view.active { display:block; }
+  .prop { border-left:6px solid #999; background:#fff; border-radius:8px; padding:9px; margin-bottom:9px; }
+  .prop.supported { border-color:#2f9e44; } .prop.adverse { border-color:#e03131; }
+  .prop.neutral { border-color:#868e96; } .prop.missing { border-color:#f08c00; }
+  .prop .top { display:flex; justify-content:space-between; font-size:11px; font-weight:700; text-transform:uppercase; }
+  .prop .txt { font-size:13px; margin:4px 0; }
+  .prop .el { font-size:11px; color:#555; }
+  .src { display:inline-block; font-size:11px; background:#eef; border:1px solid #ccd; border-radius:5px; padding:2px 6px; margin:3px 3px 0 0; cursor:pointer; }
+  .src.adverse { background:#fee; border-color:#e9b; }
+  .gap { font-size:11px; color:#b06b00; margin-top:5px; }
+  .logline { font-size:12px; padding:4px 2px; border-bottom:1px solid #e3e6d8; }
+  .logline b { color:var(--ink); }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; }
+  .modal.open { display:flex; }
+  .modal .box { background:#fff; max-width:560px; max-height:70vh; overflow:auto; padding:16px; border-radius:10px; }
+  .modal h3 { margin:0 0 8px; font-size:14px; }
+  .disclaimer { font-size:10px; color:#5a6; padding:6px 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚖️ Litigation War-Game</h1>
+  <label>Backend <input id="backend" value="http://localhost:8077" /></label>
+  <button onclick="loadCase()">1. Load case</button>
+  <button onclick="buildMatrix()">2. Build matrix</button>
+  <button onclick="runHearing()">3. Run hearing</button>
+  <button class="go" onclick="runAll()">▶ Run all</button>
+  <button onclick="resetAll()">Reset</button>
+  <span id="status">no case</span>
+</header>
+
+<div class="app">
+  <!-- The courtroom -->
+  <div class="courtroom">
+    <div class="bench">
+      <div class="actor" id="judge_uk"><div class="who">JUDGE · UK</div><div class="av">⚖️</div><div class="bubble"></div></div>
+      <div class="actor" id="judge_us"><div class="who">CHIEF JUDGE · US</div><div class="av">⚖️</div><div class="bubble"></div></div>
+      <div class="actor" id="judge_ng"><div class="who">JUDGE · NIGERIA</div><div class="av">⚖️</div><div class="bubble"></div></div>
+    </div>
+    <div class="clerk-row">
+      <div class="actor" id="clerk" style="width:200px"><div class="who">COURT CLERK</div><div class="av">📋</div><div class="bubble"></div></div>
+    </div>
+    <div class="tables">
+      <div class="actor you" id="advocate_you"><div class="who">YOUR SIDE · CLAIMANT</div><div class="av">🧑‍⚖️</div><div class="bubble"></div></div>
+      <div class="actor opp" id="advocate_opp"><div class="who">OPPONENT · DEFENDANT</div><div class="av">🧑‍⚖️</div><div class="bubble"></div></div>
+    </div>
+    <div class="gallery"><span>🧑</span><span>👩</span><span>🧑</span><span>👨</span><span>👩</span><span>🧑</span><span>👨</span><span>👩</span></div>
+  </div>
+
+  <!-- The side panel: matrix + event log -->
+  <div class="panel">
+    <div class="tabs">
+      <button class="active" onclick="tab('matrix')">Pleading-to-proof matrix</button>
+      <button onclick="tab('log')">Event log</button>
+    </div>
+    <div id="matrix" class="view active"><p style="font-size:12px;color:#777">Build the matrix to see each pleaded proposition tested against the real documents.</p></div>
+    <div id="log" class="view"></div>
+  </div>
+</div>
+<div class="disclaimer">Decision support, not legal advice. Every status links to a real document and paragraph in the bundle.</div>
+
+<div class="modal" id="modal" onclick="this.classList.remove('open')"><div class="box" onclick="event.stopPropagation()"><h3 id="mtitle"></h3><div id="mbody" style="font-size:13px;white-space:pre-wrap"></div></div></div>
+
+<script>
+const TECHFLOW = {
+  facts: "Meridian Retail (claimant) engaged TechFlow Solutions (defendant) under a Master Services Agreement to build a retail platform. Meridian alleges late delivery, defective software causing outages during peak trading, and a pre-contract misrepresentation about transaction capacity, claiming wasted expenditure and loss of profit. TechFlow denies breach.",
+  side: "claimant", jurisdictions: ["UK","US","Nigeria"], forum: "litigation"
+};
+let caseId = null;
+const api = p => document.getElementById('backend').value.replace(/\/$/,'') + p;
+const setStatus = t => document.getElementById('status').textContent = t;
+const tab = name => { for (const v of ['matrix','log']) document.getElementById(v).classList.toggle('active', v===name);
+  document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('active', (i===0)===(name==='matrix'))); };
+
+function log(author, text) {
+  const d = document.createElement('div'); d.className='logline';
+  d.innerHTML = `<b>${author}</b> ${text||''}`;
+  document.getElementById('log').prepend(d);
+}
+function bubble(id, text, conf) {
+  const el = document.getElementById(id); if (!el) return;
+  document.querySelectorAll('.actor').forEach(a=>a.classList.remove('speaking'));
+  el.classList.add('speaking');
+  el.querySelector('.bubble').innerHTML = (text||'') + (conf!=null ? `<div class="conf">confidence ${conf}</div>`:'');
+}
+
+async function loadCase() {
+  resetAll(true);
+  const r = await fetch(api('/create_case'), {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(TECHFLOW)});
+  const j = await r.json(); caseId = j.case_id; setStatus('case ' + caseId); log('Clerk','Case filed. Ready to build the matrix.');
+}
+
+function stream(path, onDone) {
+  return new Promise(resolve => {
+    const es = new EventSource(api(path + (path.includes('?')?'&':'?') + 'case_id=' + caseId));
+    const close = () => { es.close(); resolve(); if(onDone) onDone(); };
+    es.addEventListener('phase_start', e => log('—', JSON.parse(e.data).label || 'phase'));
+    es.addEventListener('clerk', e => { const t=JSON.parse(e.data).text; bubble('clerk',t); log('Clerk', t); });
+    es.addEventListener('evidence_mapped', e => renderProp(JSON.parse(e.data)));
+    es.addEventListener('agent_message', e => { const d=JSON.parse(e.data);
+      const id = d.role && d.role.includes('opponent') ? 'advocate_opp' : 'advocate_you';
+      bubble(id, d.text, d.confidence); log(d.role, '('+(d.issue||'').slice(0,40)+'…)'); });
+    es.addEventListener('panel_ruling', e => { const d=JSON.parse(e.data);
+      bubble('judge_'+d.jurisdiction, d.text); log('Judge '+d.jurisdiction.toUpperCase(), ''); });
+    es.addEventListener('score_update', e => { const d=JSON.parse(e.data); log('Referee', JSON.stringify(d.scores)); });
+    es.addEventListener('verdict', e => log('Verdict', JSON.stringify(JSON.parse(e.data).outcomes||[]).slice(0,200)));
+    es.addEventListener('reflection_write', e => { const d=JSON.parse(e.data); log('Reflection ('+d.base+')', (d.text||'').slice(0,80)); });
+    es.addEventListener('error', e => { try{log('Error', JSON.parse(e.data).message);}catch{} close(); });
+    es.addEventListener('done', close);
+  });
+}
+
+function buildMatrix() { if(!caseId) return alert('Load a case first'); setStatus('building matrix…');
+  document.getElementById('matrix').innerHTML=''; tab('matrix');
+  return stream('/build_matrix/stream', ()=>setStatus('matrix ready · case '+caseId)); }
+
+function runHearing() { if(!caseId) return alert('Load a case first'); setStatus('hearing in session…');
+  return stream('/run_hearing/stream', ()=>setStatus('hearing done · case '+caseId)); }
+
+async function runAll() { await loadCase(); await buildMatrix(); await runHearing(); }
+
+function renderProp(d) {
+  const c = document.createElement('div'); c.className = 'prop ' + (d.status||'neutral');
+  const srcs = (d.sources||[]).map((s,i)=>`<span class="src ${s.kind}" onclick='showSrc(${JSON.stringify(s).replace(/'/g,"&#39;")})'>${s.doc} ¶${s.para}</span>`).join('');
+  c.innerHTML = `<div class="top"><span>${d.id} · ${d.status}</span><span>conf ${d.confidence ?? '—'}</span></div>
+    <div class="txt">${d.proposition||''}</div><div class="el">element: ${d.legal_element||''}</div>
+    <div>${srcs}</div>${d.gap?`<div class="gap">gap: ${d.gap}</div>`:''}`;
+  document.getElementById('matrix').appendChild(c);
+}
+function showSrc(s) { document.getElementById('mtitle').textContent = s.doc + ' — paragraph ' + s.para + ' (' + s.kind + ')';
+  document.getElementById('mbody').textContent = s.quote || '(quote unavailable)';
+  document.getElementById('modal').classList.add('open'); }
+
+function resetAll(keepCase) {
+  document.getElementById('log').innerHTML=''; document.getElementById('matrix').innerHTML='';
+  document.querySelectorAll('.bubble').forEach(b=>b.innerHTML=''); document.querySelectorAll('.actor').forEach(a=>a.classList.remove('speaking'));
+  if(!keepCase){ caseId=null; setStatus('no case'); fetch(api('/reset_demo'),{method:'POST'}).catch(()=>{}); }
+}
+</script>
+</body>
+</html>

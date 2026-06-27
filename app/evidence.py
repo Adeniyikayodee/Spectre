@@ -35,17 +35,36 @@ MAP_SYS = (
 
 
 def build_matrix(case: dict, limit: int = 5) -> dict:
-    """Read the bundle, extract a handful of propositions, map each to evidence."""
+    """Blocking entrypoint: drain the streamed matrix and return it."""
+    for _ in stream_matrix(case, limit):
+        pass
+    return case["matrix"]
+
+
+def stream_matrix(case: dict, limit: int = 4):
+    """Build the matrix as a stream of evidence_mapped events for the UI. Each
+    proposition becomes one event; the propositions also become the hearing's issues,
+    so the advocates then argue from the matrix."""
     docs = bundle.read_bundle()
+    yield _ev("phase_start", phase="matrix", label="Reading the bundle and building the matrix")
     propositions = extract_propositions(bundle.pleadings_text(docs), limit)
-    evidence = bundle.evidence_passages(docs)
-    cells = [_map_one(p, i, evidence, docs) for i, p in enumerate(propositions)]
-    return {
-        "case_id": case.get("case_id"),
-        "built_from": str(bundle.bundle_dir()),
-        "documents": [d["name"] for d in docs],
-        "propositions": cells,
-    }
+    evidence_list = bundle.evidence_passages(docs)
+    cells = []
+    for i, prop in enumerate(propositions):
+        cell = _map_one(prop, i, evidence_list, docs)
+        cells.append(cell)
+        yield _ev("evidence_mapped", id=cell["id"], proposition=cell["text"],
+                  legal_element=cell["legal_element"], status=cell["status"],
+                  confidence=cell["confidence"], sources=cell["sources"],
+                  contradictions=cell["contradictions"], gap=cell.get("gap"))
+    case["matrix"] = {"case_id": case.get("case_id"), "built_from": str(bundle.bundle_dir()),
+                      "documents": [d["name"] for d in docs], "propositions": cells}
+    case["issues"] = [c["text"] for c in cells]  # the matrix propositions are the hearing's issues
+    yield _ev("done")
+
+
+def _ev(type_: str, **payload) -> dict:
+    return {"type": type_, **payload}
 
 
 def extract_propositions(pleadings_text: str, limit: int) -> list[dict]:

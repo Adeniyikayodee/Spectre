@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-from . import experience, graph, guardrails, pipeline, store  # noqa: E402  (after load_dotenv)
+from . import evidence, experience, graph, guardrails, pipeline, store  # noqa: E402  (after load_dotenv)
 from .router import provider_status  # noqa: E402
 
 app = FastAPI(title="Litigation War-Game Engine", version="0.1.0")
@@ -49,9 +49,10 @@ def root():
     return {
         "service": "Litigation War-Game Engine",
         "providers": provider_status(),
-        "endpoints": ["/create_case", "/run_hearing", "/run_hearing/stream",
-                      "/assess_appeal", "/get_playbook", "/get_case_map",
-                      "/list_experience", "/reset_demo", "/health"],
+        "endpoints": ["/create_case", "/build_matrix/stream", "/get_matrix",
+                      "/run_hearing", "/run_hearing/stream", "/assess_appeal",
+                      "/get_playbook", "/get_case_map", "/list_experience",
+                      "/reset_demo", "/health"],
         "disclaimer": guardrails.DISCLAIMER,
     }
 
@@ -78,6 +79,32 @@ def run_hearing(body: CaseRef):
     issues = pipeline.run_hearing(case)
     store.save_case(case)
     return guardrails.stamp({"case_id": case["case_id"], "issues": issues})
+
+
+@app.get("/build_matrix/stream")
+def build_matrix_stream(case_id: str):
+    """Server-Sent Events: the pleading-to-proof matrix built live from the bundle.
+    GET (not POST) so the browser EventSource can consume it, matching run_hearing/stream."""
+    case = _require(case_id)
+
+    def gen():
+        try:
+            for event in evidence.stream_matrix(case):
+                yield f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+            store.save_case(case)
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/get_matrix")
+def get_matrix(case_id: str):
+    case = _require(case_id)
+    return guardrails.stamp({"case_id": case_id, "matrix": case.get("matrix")})
 
 
 @app.get("/run_hearing/stream")

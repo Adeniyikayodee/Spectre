@@ -37,3 +37,31 @@ engine); an ADK mirror in `adk_app/` is a later stage.
 - Mapping uses a cheap keyword pre-filter to pick candidate passages, then the agent cites
   only from those by number; embeddings would be more thorough.
 - The demo runs on a handful of propositions (default 5) to stay fast and cheap.
+
+## Stage 2: connect the matrix to the stream and the UI
+
+### Added
+- `app/fixtures/techflow.json` — the demo case matching the actual bundle (a TechFlow
+  Master Services Agreement dispute). Reason: ground the hearing to the real folder.
+- `frontend/index.html` — a single-file working UI: the courtroom (three-judge bench,
+  two counsel tables, clerk, gallery) and a side panel that builds the matrix and logs
+  the hearing from the live event stream. Reason: the watchable demo, and the spec for Lovable.
+
+### Changed
+- `app/evidence.py` — added `stream_matrix`, which emits one `evidence_mapped` event per
+  proposition and sets the case issues from the propositions so the hearing argues the
+  matrix. `build_matrix` now drains it (one code path). Reason: stream the matrix to the UI.
+- `app/main.py` — added `GET /build_matrix/stream` (SSE) and `GET /get_matrix`. Reason:
+  the UI needs to build and read the matrix; GET stream matches the existing run_hearing/stream.
+
+### Left untouched (deliberately)
+- The hearing pipeline logic, the panel, the referee, the appeal, the experience base.
+  Reason: they already work; this stage only feeds the matrix in and surfaces it.
+- The witness folder — still read only and untracked.
+
+### Assumptions
+- SSE endpoints are GET (not POST) so the browser EventSource can consume them, matching
+  the existing run_hearing/stream; the REST contract's "POST" is served as a GET stream.
+- The frontend is a thin view: all logic stays in the backend; it renders the real stream.
+- Lovable and Momen are browser-based builders that cannot be driven from a terminal, so
+  this working local UI is delivered directly and also serves as the Lovable spec.
