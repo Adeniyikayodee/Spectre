@@ -41,28 +41,40 @@ def mark_load_bearing(hearing: list[dict]) -> list[dict]:
 
 
 def ingest(case: dict) -> None:
-    """Write Issue -[:SUPPORTED_BY]-> Authority into Aura. Best-effort: a DB hiccup
-    never breaks a request — the in-memory graph still serves."""
+    """Write Issue -[:SUPPORTED_BY]-> Authority into Aura via the HTTP Query API.
+    We use HTTP (443) rather than the Bolt driver (7687) because Bolt is not reachable
+    from every host, while the official Query API always is. Best-effort: a DB hiccup
+    never breaks a request, and the in-memory graph still serves the display."""
     if not configured():
         return
     try:
-        driver = _driver()
-        with driver.session(database=os.getenv("NEO4J_DATABASE", "neo4j")) as s:
-            for h in case.get("hearing") or []:
-                s.run("MERGE (i:Issue {case_id:$cid, text:$t})",
-                      cid=case["case_id"], t=h["issue"])
-                for a in h.get("authorities", []):
-                    if not a.get("cite"):
-                        continue
-                    s.run(
-                        "MATCH (i:Issue {case_id:$cid, text:$t}) "
-                        "MERGE (a:Authority {cite:$cite}) "
-                        "SET a.name=$name, a.load_bearing=$lb "
-                        "MERGE (i)-[:SUPPORTED_BY]->(a)",
-                        cid=case["case_id"], t=h["issue"], cite=a["cite"],
-                        name=a.get("name"), lb=bool(a.get("load_bearing")),
-                    )
-        driver.close()
+        import base64
+        import httpx
+
+        host = os.environ["NEO4J_URI"].split("://", 1)[-1].split("/")[0]
+        db = os.getenv("NEO4J_DATABASE", "neo4j")
+        token = base64.b64encode(
+            f'{os.getenv("NEO4J_USER", "neo4j")}:{os.environ["NEO4J_PASSWORD"]}'.encode()
+        ).decode()
+        url = f"https://{host}/db/{db}/query/v2"
+        headers = {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
+
+        def run(stmt, params):
+            httpx.post(url, json={"statement": stmt, "parameters": params},
+                       headers=headers, timeout=20)
+
+        for h in case.get("hearing") or []:
+            run("MERGE (i:Issue {case_id:$cid, text:$t})",
+                {"cid": case["case_id"], "t": h["issue"]})
+            for a in h.get("authorities", []):
+                if not a.get("cite"):
+                    continue
+                run("MATCH (i:Issue {case_id:$cid, text:$t}) "
+                    "MERGE (a:Authority {cite:$cite}) "
+                    "SET a.name=$name, a.load_bearing=$lb "
+                    "MERGE (i)-[:SUPPORTED_BY]->(a)",
+                    {"cid": case["case_id"], "t": h["issue"], "cite": a["cite"],
+                     "name": a.get("name"), "lb": bool(a.get("load_bearing"))})
     except Exception:
         pass
 

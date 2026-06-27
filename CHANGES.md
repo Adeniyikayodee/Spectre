@@ -65,3 +65,11 @@ engine); an ADK mirror in `adk_app/` is a later stage.
 - The frontend is a thin view: all logic stays in the backend; it renders the real stream.
 - Lovable and Momen are browser-based builders that cannot be driven from a terminal, so
   this working local UI is delivered directly and also serves as the Lovable spec.
+
+## Fix: Neo4j writes via the HTTP Query API
+
+- `app/graph.py` — `ingest` now writes through Aura's HTTP Query API (port 443) instead of
+  the Bolt driver (port 7687), because Bolt is not reachable from every host while the
+  official Query API always is. The citation graph now persists from the live flow
+  (verified: one hearing wrote 1 Issue and 3 Authority nodes to Aura). Reason: make the
+  Neo4j evidence real and host-independent. The in-memory display graph is unchanged.
