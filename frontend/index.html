@@ -59,8 +59,17 @@
   .logline b{color:#1E2A38}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:1000}
   .modal.open{display:flex}
-  .modal .box{background:#fff;max-width:560px;max-height:70vh;overflow:auto;padding:16px;border-radius:10px}
-  .modal h3{margin:0 0 8px;font-size:14px}
+  .modal .box{background:#fff;max-width:600px;max-height:74vh;overflow:auto;padding:18px 20px;border-radius:10px}
+  .modal h3{margin:0 0 10px;font-size:13px;letter-spacing:.5px;color:#1E2A38;border-bottom:2px solid #B0894F;padding-bottom:6px}
+  /* lawyer-friendly rendering of agent statements in the popup */
+  #mbody{font-size:13.5px;color:#23272e}
+  #mbody p{margin:0 0 10px;line-height:1.5}
+  #mbody strong{color:#1E2A38;font-weight:700}
+  #mbody em{color:#3a4a5a;font-style:italic}
+  #mbody ul{margin:4px 0 10px 18px;padding:0}
+  #mbody li{margin:4px 0;line-height:1.45}
+  .conf-badge{background:#efe7d4;color:#7a5a1e;font-size:11px;font-weight:700;padding:1px 7px;border-radius:9px;white-space:nowrap}
+  .cite{text-decoration:underline;text-decoration-color:#B0894F;text-underline-offset:2px;color:#23306b}
 </style>
 <script type="importmap">
 { "imports": {
@@ -194,7 +203,7 @@ window.resetView = () => { camera.position.set(0, 9, 16); controls.target.set(0,
 function clearSpeakers(){ for(const k in actors){ actors[k].bub.classList.remove('show'); if(actors[k].tagObj) actors[k].tagObj.visible=true; actors[k].mat.emissive.setHex(0x000000); } }
 window.bubble = (id, text, conf) => {
   clearSpeakers(); const a = actors[id]; if(!a) return;
-  let t = String(text||''); if(t.length>240) t=t.slice(0,240)+'…';
+  let t = String(text||'').replace(/\*+/g,''); if(t.length>240) t=t.slice(0,240)+'…';
   // put the speaker's name INSIDE the bubble and hide the floating tag, so they never overlap
   a.bub.innerHTML = `<b>${String(a.label||'').replace(/</g,'&lt;')}</b> ` + t.replace(/</g,'&lt;') + (conf!=null?`<div class="c">confidence ${conf}</div>`:'');
   a.bub.classList.add('show'); if(a.tagObj) a.tagObj.visible=false; a.mat.emissive.setHex(0xb0894f); a.mat.emissiveIntensity=0.5;
@@ -215,15 +224,39 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const hbtns = () => document.querySelectorAll('header button');
 function setBusy(label){ document.getElementById('status').innerHTML='<span class="spin"></span>'+label; hbtns().forEach(b=>b.disabled=true); }
 function setIdle(label){ document.getElementById('status').textContent=label; hbtns().forEach(b=>b.disabled=false); }
-function openModal(title, body){ document.getElementById('mtitle').textContent=title; document.getElementById('mbody').textContent=body; document.getElementById('modal').classList.add('open'); }
+// Render an agent statement the way a lawyer reads it: bold headings, italic case
+// names, underlined citations, confidence badges, and clean bullets.
+function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _inlineMd(s){
+  s = s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+  s = s.replace(/\(?\b[Cc]onfidence\s+(0?\.\d+|1(?:\.0)?)\)?/g,'<span class="conf-badge">conf $1</span>');
+  s = s.replace(/(\[\d{4}\][^,.;:\n]*?\d+)/g,'<span class="cite">$1</span>');   // [2020] EWCA Civ 1245
+  return s;
+}
+function _mdBlock(text){
+  const s = _inlineMd(_esc(String(text||'').trim()));
+  return s.split(/\n\s*\n/).map(b=>{
+    const lines = b.split('\n');
+    if (lines.every(l=> l.trim()==='' || /^\s*[-•]\s+/.test(l)))
+      return '<ul>'+lines.filter(l=>l.trim()).map(l=>'<li>'+l.replace(/^\s*[-•]\s+/,'')+'</li>').join('')+'</ul>';
+    return '<p>'+lines.join('<br>')+'</p>';
+  }).join('') || '<p>(no text)</p>';
+}
+function openModal(title, body, rich){
+  document.getElementById('mtitle').textContent = title;
+  const mb = document.getElementById('mbody');
+  if (rich){ mb.style.whiteSpace = 'normal'; mb.innerHTML = _mdBlock(body); }
+  else { mb.style.whiteSpace = 'pre-wrap'; mb.textContent = body; }
+  document.getElementById('modal').classList.add('open');
+}
 window.tab = name => { for(const v of ['matrix','log']) document.getElementById(v).classList.toggle('active', v===name);
   document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('active',(i===0)===(name==='matrix'))); };
 function log(author, text){ const el=document.getElementById('log'); if(!el) return; if(el.querySelector('p')) el.innerHTML='';
   const full=String(text||'').trim();                       // full text (with newlines) for the popup
-  let t=full.replace(/\s+/g,' '); if(t.length>110) t=t.slice(0,110)+'…';   // one-line preview
+  let t=full.replace(/\*+/g,'').replace(/\s+/g,' '); if(t.length>110) t=t.slice(0,110)+'…';   // clean one-line preview
   const d=document.createElement('div'); d.className='logline'; d.title='click to see the full text';
   d.innerHTML=`<b>${author}</b> ${t.replace(/</g,'&lt;')}`;
-  d.addEventListener('click', ()=>openModal(author, full||'(no text)'));   // see more
+  d.addEventListener('click', ()=>openModal(author, full||'(no text)', true));   // see more, rendered
   el.prepend(d);
   const p=el.closest('.panel'); if(p) p.scrollTop=0; }   // follow the newest line
 
