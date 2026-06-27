@@ -70,6 +70,47 @@ Lovable, point it at a public URL (Cloud Run, or `ngrok http 8000` while develop
 `GET /list_experience` returns the experience base so the UI can show it grow across
 runs; `POST /reset_demo` clears it.
 
+## Methodology: the pleading-to-proof matrix
+
+The matrix is not a single model call. It is a grounded retrieval-and-classification
+pipeline in which the model may only cite passages it was handed, so no citation can be
+invented. The code is in `app/bundle.py` and `app/evidence.py`.
+
+Goal: for every pleaded proposition (each allegation or denial, with the legal element it
+must prove), decide whether the evidence in the bundle supports it, and link that decision
+to an exact document and paragraph.
+
+1. **Index the bundle.** Each `.docx` is read read-only and split into its non-empty
+   paragraphs. A citable passage is `(document, paragraph index, text)`. Documents are
+   tagged pleading (Claim Form, Particulars) or evidence (everything else) by filename.
+2. **Extract propositions.** An extraction agent (Claude) reads only the pleadings and
+   returns structured rows `{text, party, legal_element}`. The matrix rows come straight
+   from what was pleaded.
+3. **Retrieve candidates (lexical pre-filter).** For each proposition, every evidence
+   passage is scored by term overlap: the significant words (length over three) from the
+   proposition and its legal element, counted against each passage. The top twelve are
+   kept. If nothing overlaps, the proposition is marked missing (a gap) with no model call.
+4. **Classify against the candidates.** A mapping agent (Claude) receives the proposition
+   and the numbered candidate passages and returns JSON: a status, a confidence (0 to 1),
+   the supporting and adverse passage numbers, any contradiction, and a gap. It may only
+   refer to passages by the numbers it was given.
+5. **Resolve citations.** Each cited number is mapped back to its real
+   `(document, paragraph)` and the verbatim quote is copied from the bundle. Any number
+   outside the candidate set is dropped, so a citation cannot be fabricated.
+
+Status taxonomy: supported (evidence proves it), adverse (evidence cuts against it),
+neutral (mixed or weak), missing (no relevant passage).
+
+Two-part confidence: first, the evidence-link strength from stage four (how well the
+passages back the proposition); second, added by the hearing, the panel spread (how split
+the judges were once the proposition is stress-tested). The first is how strong the proof
+is; the second is how contested it is.
+
+Limitation: the retriever is keyword and term overlap, not embeddings. It is fast, cheap,
+and fully traceable, but it can miss evidence phrased in different words, which is why a
+proposition with no lexical match is flagged as a gap rather than assumed proven. Swapping
+the pre-filter for vector embeddings is a drop-in change behind one function.
+
 ## Research grounding
 
 The design lifts concrete mechanisms from four papers (PDFs in
