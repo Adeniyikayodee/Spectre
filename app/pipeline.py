@@ -123,12 +123,23 @@ def stream_hearing(case: dict):
                              "\n\n".join(transcript))
         yield _ev("clerk", text="The clerk summarises the exchange for the bench.")
 
-        # The three-model panel rules on the facts (Aletras framing).
+        # The multi-model panel rules on the facts (Aletras framing). The EU seat is
+        # added only when EU is a jurisdiction, and it consults EU legislation via Cellar.
         brief = f"Issue: {issue}\nFacts: {case['facts']}\n\nExchange:\n{summary}\n\n{JUDGE_RULES}"
+        bench = [("uk", "judge_uk", "UK"), ("us", "judge_us", "US"), ("ng", "judge_ng", "Nigeria")]
+        if any(j.upper() == "EU" for j in case.get("jurisdictions", [])):
+            bench.append(("eu", "judge_eu", "EU"))
         panel = {}
-        for juris, jrole, name in (("uk", "judge_uk", "UK"), ("us", "judge_us", "US"),
-                                   ("ng", "judge_ng", "Nigeria")):
-            ruling = agents.ask(jrole, f"You are a {name} judge.", brief)
+        for juris, jrole, name in bench:
+            jbrief = brief
+            if juris == "eu":  # the EU judge reads EU legislation from Cellar
+                acts = research.cellar_search(issue)
+                yield _ev("retrieval", knowledge_base="EU legislation (Cellar)", issue=issue,
+                          query=issue, hits=[{"title": a["title"]} for a in acts])
+                jbrief = brief + ("\n\nRelevant EU legislation (Cellar):\n" +
+                                  "\n".join("- " + a["title"] for a in acts) if acts else
+                                  "\n\n(No specific EU legislation matched in Cellar; treat EU coverage as thin.)")
+            ruling = agents.ask(jrole, f"You are a{'n' if juris == 'eu' else ''} {name} judge.", jbrief)
             panel[juris] = ruling
             yield _ev("panel_ruling", issue=issue, jurisdiction=juris, text=ruling)
 
@@ -281,10 +292,12 @@ def _tendency(panel: dict) -> dict:
         return {"winner": "undecided", "confidence": "low", "likelihood": None,
                 "uncertainty": "panel gave no clear ruling"}
     winner = max(votes, key=votes.get)
-    agree = max(votes.values())  # how many of the 3 judges agree = the spread signal
-    confidence = {3: "high", 2: "medium"}.get(agree, "low")
-    band = {3: "~75-90%", 2: "~55-70%", 1: "~50%"}[agree]
-    uncertainty = ("panel unanimous, but a pattern not a verdict" if agree == 3
+    agree = votes[winner]                 # how many judges agree = the spread signal
+    n = len(panel)                        # robust to a 3- or 4-judge bench
+    frac = agree / n
+    confidence = "high" if frac >= 0.75 else "medium" if frac >= 0.5 else "low"
+    band = f"~{min(90, int(50 + frac * 45))}%"
+    uncertainty = ("panel unanimous, but a pattern not a verdict" if agree == n
                    else "panel split — treat the issue as open")
     return {"winner": winner, "confidence": confidence,
             "likelihood": f"{winner} {band}", "uncertainty": uncertainty}

@@ -1,6 +1,6 @@
 {
   "facts": "Meridian Retail (claimant) engaged TechFlow Solutions (defendant) under a Master Services Agreement to build and deliver a retail platform. Meridian alleges late delivery, defective software causing outages during peak trading, and a pre-contract misrepresentation about transaction capacity, and claims wasted expenditure and loss of profit. TechFlow denies breach, relying on a signed change order revising the go-live date, expert evidence on availability, and intervening causes. The pleaded propositions and the evidence are in the witness statement bundle.",
   "side": "claimant",
-  "jurisdictions": ["UK", "US", "Nigeria"],
+  "jurisdictions": ["UK", "US", "Nigeria", "EU"],
   "forum": "litigation"
 }

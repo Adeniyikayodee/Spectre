@@ -73,3 +73,18 @@ engine); an ADK mirror in `adk_app/` is a later stage.
   official Query API always is. The citation graph now persists from the live flow
   (verified: one hearing wrote 1 Issue and 3 Authority nodes to Aura). Reason: make the
   Neo4j evidence real and host-independent. The in-memory display graph is unchanged.
+
+## Feature: EU judge and the Cellar legislation layer
+
+- `app/research.py` — `cellar_search` queries the EU Cellar SPARQL endpoint for EU legal
+  texts whose English title contains a topical keyword from the issue (fallback "contract").
+  Best-effort. Reason: give the EU jurisdiction a real legislation source so Cellar is used.
+- `app/router.py` — added the `judge_eu` role (Claude Sonnet).
+- `app/pipeline.py` — the panel adds an EU seat only when EU is a jurisdiction; the EU judge
+  reads the Cellar results before ruling and a `retrieval` event surfaces them. Panel-spread
+  confidence now scales to any bench size (fixes a four-judge edge case). Reason: add EU to
+  the judges so the engine calls Cellar.
+- `app/fixtures/techflow.json`, `frontend/index.html` — EU added to the demo jurisdictions
+  and a fourth judge figure added to the 3D bench.
+- Verified: a four-judge hearing ruled with an EU seat, and Cellar returned real EU acts
+  matched on a topical keyword.

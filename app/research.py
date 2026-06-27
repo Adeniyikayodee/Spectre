@@ -70,3 +70,48 @@ def cellar_sparql(query: str) -> dict:
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def cellar_search(issue: str, limit: int = 4) -> list[dict]:
+    """Search the EU Cellar SPARQL endpoint for EU legal texts whose English title
+    contains a keyword from the issue (falling back to 'contract'). Best-effort:
+    returns [] on timeout or error. This is the EU legislation layer that the EU judge
+    consults; UK/US/Nigeria case law still comes from Perplexity."""
+    for kw in _cellar_keywords(issue):
+        titles = _cellar_query(kw, limit)
+        if titles:
+            return [{"title": t, "matched": kw, "source": "Cellar (EU Publications Office)"}
+                    for t in titles]
+    return []
+
+
+_CELLAR_STOP = {"whether", "against", "between", "concerning", "regarding", "applicable",
+                "relating", "pursuant", "claimant", "defendant", "contract"}
+
+
+def _cellar_keywords(text: str) -> list[str]:
+    words = [w for w in "".join(c.lower() if c.isalnum() else " " for c in text).split()
+             if len(w) > 5 and w not in _CELLAR_STOP]
+    return (words[:1] or []) + ["contract"]  # one topical issue keyword, then a reliable fallback
+
+
+def _cellar_query(keyword: str, limit: int) -> list[str]:
+    import httpx
+
+    sparql = (
+        'PREFIX cdm: <http://publications.europa.eu/ontology/cdm#> '
+        'PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> '
+        'SELECT DISTINCT ?title WHERE { '
+        '?work cdm:work_date_document ?d . FILTER(?d >= "2015-01-01"^^xsd:date) '
+        '?exp cdm:expression_belongs_to_work ?work ; '
+        'cdm:expression_uses_language <http://publications.europa.eu/resource/authority/language/ENG> ; '
+        'cdm:expression_title ?title . '
+        f'FILTER(CONTAINS(LCASE(STR(?title)), "{keyword}")) }} LIMIT {limit}'
+    )
+    try:
+        r = httpx.get("https://publications.europa.eu/webapi/rdf/sparql",
+                      params={"query": sparql, "format": "application/sparql-results+json"},
+                      timeout=25)
+        return [b["title"]["value"] for b in r.json().get("results", {}).get("bindings", [])]
+    except Exception:
+        return []
