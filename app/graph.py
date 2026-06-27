@@ -47,7 +47,7 @@ def ingest(case: dict) -> None:
         return
     try:
         driver = _driver()
-        with driver.session() as s:
+        with driver.session(database=os.getenv("NEO4J_DATABASE", "neo4j")) as s:
             for h in case.get("hearing") or []:
                 s.run("MERGE (i:Issue {case_id:$cid, text:$t})",
                       cid=case["case_id"], t=h["issue"])
