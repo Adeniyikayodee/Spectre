@@ -187,12 +187,8 @@
       <label style="display:block;margin-top:6px">Jurisdictions <input id="f_juris" value="UK, US, Nigeria" style="width:100%;border:1px solid #ccd;border-radius:6px;padding:5px"></label>
       <div style="margin-top:6px;color:#888">Press “Load case”, then “Build matrix”. The matrix is always built from the witness bundle in the codebase.</div>
     </div>
-    <div class="tabs">
-      <button class="active" onclick="tab('matrix')">Pleading-to-proof matrix</button>
-      <button onclick="tab('log')">Event log</button>
-    </div>
-    <div id="matrix" class="view active"><p style="font-size:12px;color:#777">Build the matrix to see each pleaded proposition tested against the real documents.</p></div>
-    <div id="log" class="view"></div>
+    <h3 style="font-size:13px;margin:4px 0 8px;color:#33502f">Pleading-to-proof matrix</h3>
+    <div id="matrix"><p style="font-size:12px;color:#777">Build the matrix to see each pleaded proposition tested against the real documents.</p></div>
   </div>
 </div>
 
@@ -211,14 +207,8 @@ function caseBody() {
 }
 const api = p => document.getElementById('backend').value.replace(/\/$/,'') + p;
 const setStatus = t => document.getElementById('status').textContent = t;
-const tab = name => { for (const v of ['matrix','log']) document.getElementById(v).classList.toggle('active', v===name);
-  document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('active', (i===0)===(name==='matrix'))); };
 
-function log(author, text) {
-  const d = document.createElement('div'); d.className='logline';
-  d.innerHTML = `<b>${author}</b> ${text||''}`;
-  document.getElementById('log').prepend(d);
-}
+function log() { /* event log removed; the courtroom bubbles and the matrix are the view */ }
 function bubble(id, text, conf) {
   const el = document.getElementById(id); if (!el) return;
   document.querySelectorAll('.actor').forEach(a=>a.classList.remove('speaking'));
@@ -257,7 +247,7 @@ function stream(path, onDone) {
 }
 
 function buildMatrix() { if(!caseId) return alert('Load a case first'); setStatus('building matrix…');
-  document.getElementById('matrix').innerHTML=''; tab('matrix');
+  document.getElementById('matrix').innerHTML='';
   return stream('/build_matrix/stream', ()=>setStatus('matrix ready · case '+caseId)); }
 
 function runHearing() { if(!caseId) return alert('Load a case first'); setStatus('hearing in session…');
@@ -278,7 +268,7 @@ function showSrc(s) { document.getElementById('mtitle').textContent = s.doc + ' 
   document.getElementById('modal').classList.add('open'); }
 
 function resetAll(keepCase) {
-  document.getElementById('log').innerHTML=''; document.getElementById('matrix').innerHTML='';
+  document.getElementById('matrix').innerHTML='';
   document.querySelectorAll('.bubble').forEach(b=>{b.innerHTML='';b.classList.remove('show')});
   document.querySelectorAll('.actor').forEach(a=>a.classList.remove('speaking'));
   if(!keepCase){ caseId=null; setStatus('no case'); fetch(api('/reset_demo'),{method:'POST'}).catch(()=>{}); }
