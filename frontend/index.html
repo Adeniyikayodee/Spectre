@@ -22,6 +22,9 @@
   button{padding:6px 12px;border:0;border-radius:6px;background:#2e4257;color:#dfe;font-weight:600;cursor:pointer}
   button:hover{background:#3a5169}
   button.go{background:#b0894f;color:#1b1410}
+  button:disabled{opacity:.45;cursor:default}
+  .spin{display:inline-block;width:11px;height:11px;border:2px solid #9fb;border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite;margin-right:6px;vertical-align:-1px}
+  @keyframes sp{to{transform:rotate(360deg)}}
   #status{margin-left:auto;font-size:12px;color:#9fb}
   .app{display:flex;height:calc(100vh - 52px)}
   #scene{flex:3;position:relative;background:#cfc6b3}
@@ -72,6 +75,8 @@
   <button onclick="loadCase()">1. Load case</button>
   <button onclick="buildMatrix()">2. Build matrix</button>
   <button onclick="runHearing()">3. Run hearing</button>
+  <button onclick="assessAppeal()">4. Appeal</button>
+  <button onclick="playbook()">5. Playbook</button>
   <button class="go" onclick="runAll()">▶ Run all</button>
   <button onclick="resetAll()">Reset</button>
   <span id="status">no case</span>
@@ -199,15 +204,23 @@ let caseId = null;
 function caseBody(){ return { facts:"Meridian Retail (claimant) engaged TechFlow Solutions (defendant) under a Master Services Agreement to build a retail platform. Meridian alleges late delivery, defective software causing outages during peak trading, and a pre-contract misrepresentation about transaction capacity, claiming wasted expenditure and loss of profit. TechFlow denies breach.", side:"claimant", jurisdictions:["UK","US","Nigeria"], forum:"litigation" }; }
 const api = p => document.getElementById('backend').value.replace(/\/$/,'') + p;
 const setStatus = t => document.getElementById('status').textContent = t;
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const hbtns = () => document.querySelectorAll('header button');
+function setBusy(label){ document.getElementById('status').innerHTML='<span class="spin"></span>'+label; hbtns().forEach(b=>b.disabled=true); }
+function setIdle(label){ document.getElementById('status').textContent=label; hbtns().forEach(b=>b.disabled=false); }
+function openModal(title, body){ document.getElementById('mtitle').textContent=title; document.getElementById('mbody').textContent=body; document.getElementById('modal').classList.add('open'); }
 window.tab = name => { for(const v of ['matrix','log']) document.getElementById(v).classList.toggle('active', v===name);
   document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('active',(i===0)===(name==='matrix'))); };
 function log(author, text){ const el=document.getElementById('log'); if(!el) return; if(el.querySelector('p')) el.innerHTML='';
   let t=String(text||'').replace(/\s+/g,' ').trim(); if(t.length>110) t=t.slice(0,110)+'…';
   const d=document.createElement('div'); d.className='logline'; d.innerHTML=`<b>${author}</b> ${t.replace(/</g,'&lt;')}`; el.prepend(d); }
 
-window.loadCase = async () => { resetAll(true);
-  const r=await fetch(api('/create_case'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(caseBody())});
-  const j=await r.json(); caseId=j.case_id; setStatus('case '+caseId); setPhase('intake'); log('Clerk','Case filed. Ready to build the matrix.'); };
+window.loadCase = async () => { resetAll(true); setBusy('Filing case · reading the bundle…'); setPhase('intake');
+  try {
+    const work = fetch(api('/create_case'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(caseBody())}).then(r=>r.json());
+    const [j] = await Promise.all([work, sleep(1600)]);   // show the loader for a moment even if the backend is quick
+    caseId=j.case_id; log('Clerk','Case filed. Ready to build the matrix.'); setIdle('case '+caseId);
+  } catch(e){ setIdle('could not reach backend'); } };
 
 function stream(path, onDone){ return new Promise(resolve=>{
   const es=new EventSource(api(path+(path.includes('?')?'&':'?')+'case_id='+caseId));
@@ -225,20 +238,28 @@ function stream(path, onDone){ return new Promise(resolve=>{
   es.addEventListener('done', close);
 }); }
 
-window.buildMatrix = () => { if(!caseId) return alert('Load a case first'); setStatus('building matrix…'); setPhase('matrix');
+window.buildMatrix = () => { if(!caseId) return alert('Load a case first'); setBusy('Reading the bundle · mapping evidence…'); setPhase('matrix');
   document.getElementById('matrix').innerHTML=''; tab('matrix');
-  return stream('/build_matrix/stream', ()=>setStatus('matrix ready · case '+caseId)); };
-window.runHearing = () => { if(!caseId) return alert('Load a case first'); setStatus('hearing in session…'); setPhase('hearing');
-  return stream('/run_hearing/stream', ()=>setStatus('hearing done · case '+caseId)); };
+  return stream('/build_matrix/stream', ()=>setIdle('matrix ready · case '+caseId)); };
+window.runHearing = () => { if(!caseId) return alert('Load a case first'); setBusy('Hearing in session…'); setPhase('hearing');
+  return stream('/run_hearing/stream', ()=>setIdle('hearing done · case '+caseId)); };
 window.runAll = async () => { await loadCase(); await buildMatrix(); await runHearing(); };
+
+window.assessAppeal = async () => { if(!caseId) return alert('Load a case first'); setBusy('Assessing appeal grounds…'); setPhase('appeal');
+  try { const r=await fetch(api('/assess_appeal'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({case_id:caseId})});
+    const j=await r.json(); log('Appeal ('+(j.mode||'')+')', j.analysis||''); openModal('Appeal & challenge — '+(j.mode||''), j.analysis||'(none)'); setIdle('appeal ready');
+  } catch(e){ setIdle('appeal failed'); } };
+window.playbook = async () => { if(!caseId) return alert('Load a case first'); setBusy('Writing the playbook…'); setPhase('playbook');
+  try { const r=await fetch(api('/get_playbook?case_id='+caseId)); const j=await r.json();
+    openModal('Strategy playbook', j.playbook || JSON.stringify(j,null,2)); setIdle('playbook ready');
+  } catch(e){ setIdle('playbook failed'); } };
 
 function renderProp(d){ const c=document.createElement('div'); c.className='prop '+(d.status||'neutral');
   const srcs=(d.sources||[]).map(s=>`<span class="src ${s.kind}" onclick='showSrc(${JSON.stringify(s).replace(/'/g,"&#39;")})'>${s.doc} ¶${s.para}</span>`).join('');
   c.innerHTML=`<div class="top"><span>${d.id} · ${d.status}</span><span>conf ${d.confidence ?? '—'}</span></div>
     <div class="txt">${d.proposition||''}</div><div class="el">element: ${d.legal_element||''}</div><div>${srcs}</div>${d.gap?`<div class="gap">gap: ${d.gap}</div>`:''}`;
   document.getElementById('matrix').appendChild(c); }
-window.showSrc = s => { document.getElementById('mtitle').textContent=s.doc+' — paragraph '+s.para+' ('+s.kind+')';
-  document.getElementById('mbody').textContent=s.quote||'(quote unavailable)'; document.getElementById('modal').classList.add('open'); };
+window.showSrc = s => openModal(s.doc+' — paragraph '+s.para+' ('+s.kind+')', s.quote||'(quote unavailable)');
 
 window.resetAll = (keepCase) => {
   document.getElementById('matrix').innerHTML=''; const lg=document.getElementById('log'); if(lg) lg.innerHTML='';
