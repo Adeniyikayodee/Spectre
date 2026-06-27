@@ -187,8 +187,12 @@
       <label style="display:block;margin-top:6px">Jurisdictions <input id="f_juris" value="UK, US, Nigeria" style="width:100%;border:1px solid #ccd;border-radius:6px;padding:5px"></label>
       <div style="margin-top:6px;color:#888">Press “Load case”, then “Build matrix”. The matrix is always built from the witness bundle in the codebase.</div>
     </div>
-    <h3 style="font-size:13px;margin:4px 0 8px;color:#33502f">Pleading-to-proof matrix</h3>
-    <div id="matrix"><p style="font-size:12px;color:#777">Build the matrix to see each pleaded proposition tested against the real documents.</p></div>
+    <div class="tabs">
+      <button class="active" onclick="tab('matrix')">Pleading-to-proof matrix</button>
+      <button onclick="tab('log')">Event log</button>
+    </div>
+    <div id="matrix" class="view active"><p style="font-size:12px;color:#777">Build the matrix to see each pleaded proposition tested against the real documents.</p></div>
+    <div id="log" class="view"><p style="font-size:12px;color:#777">Run the hearing to see every statement, ruling, and reflection here.</p></div>
   </div>
 </div>
 
@@ -207,8 +211,17 @@ function caseBody() {
 }
 const api = p => document.getElementById('backend').value.replace(/\/$/,'') + p;
 const setStatus = t => document.getElementById('status').textContent = t;
+const tab = name => { for (const v of ['matrix','log']) document.getElementById(v).classList.toggle('active', v===name);
+  document.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('active', (i===0)===(name==='matrix'))); };
 
-function log() { /* event log removed; the courtroom bubbles and the matrix are the view */ }
+// The full event log: every statement, ruling, score, and reflection, newest first.
+function log(author, text) {
+  const el = document.getElementById('log'); if (!el) return;
+  if (el.querySelector('p')) el.innerHTML = '';   // clear the placeholder on first entry
+  const d = document.createElement('div'); d.className='logline';
+  d.innerHTML = `<b>${author}</b> ${String(text||'').replace(/</g,'&lt;')}`;
+  el.prepend(d);
+}
 function bubble(id, text, conf) {
   const el = document.getElementById(id); if (!el) return;
   document.querySelectorAll('.actor').forEach(a=>a.classList.remove('speaking'));
@@ -232,12 +245,14 @@ function stream(path, onDone) {
     const close = () => { es.close(); resolve(); if(onDone) onDone(); };
     es.addEventListener('phase_start', e => log('—', JSON.parse(e.data).label || 'phase'));
     es.addEventListener('clerk', e => { const t=JSON.parse(e.data).text; bubble('clerk',t); log('Clerk', t); });
-    es.addEventListener('evidence_mapped', e => renderProp(JSON.parse(e.data)));
+    es.addEventListener('evidence_mapped', e => { const d=JSON.parse(e.data); renderProp(d);
+      log(`Matrix · ${d.id} (${d.status})`, d.proposition); });
     es.addEventListener('agent_message', e => { const d=JSON.parse(e.data);
       const id = d.role && d.role.includes('opponent') ? 'advocate_opp' : 'advocate_you';
-      bubble(id, d.text, d.confidence); log(d.role, '('+(d.issue||'').slice(0,40)+'…)'); });
+      bubble(id, d.text, d.confidence);
+      log(`${d.role}${d.round?' · round '+d.round:''}`, d.text); });
     es.addEventListener('panel_ruling', e => { const d=JSON.parse(e.data);
-      bubble('judge_'+d.jurisdiction, d.text); log('Judge '+d.jurisdiction.toUpperCase(), ''); });
+      bubble('judge_'+d.jurisdiction, d.text); log('Judge '+d.jurisdiction.toUpperCase(), d.text); });
     es.addEventListener('score_update', e => { const d=JSON.parse(e.data); log('Referee', JSON.stringify(d.scores)); });
     es.addEventListener('verdict', e => log('Verdict', JSON.stringify(JSON.parse(e.data).outcomes||[]).slice(0,200)));
     es.addEventListener('reflection_write', e => { const d=JSON.parse(e.data); log('Reflection ('+d.base+')', (d.text||'').slice(0,80)); });
@@ -247,7 +262,7 @@ function stream(path, onDone) {
 }
 
 function buildMatrix() { if(!caseId) return alert('Load a case first'); setStatus('building matrix…');
-  document.getElementById('matrix').innerHTML='';
+  document.getElementById('matrix').innerHTML=''; tab('matrix');
   return stream('/build_matrix/stream', ()=>setStatus('matrix ready · case '+caseId)); }
 
 function runHearing() { if(!caseId) return alert('Load a case first'); setStatus('hearing in session…');
@@ -268,7 +283,7 @@ function showSrc(s) { document.getElementById('mtitle').textContent = s.doc + ' 
   document.getElementById('modal').classList.add('open'); }
 
 function resetAll(keepCase) {
-  document.getElementById('matrix').innerHTML='';
+  document.getElementById('matrix').innerHTML=''; const lg=document.getElementById('log'); if(lg) lg.innerHTML='';
   document.querySelectorAll('.bubble').forEach(b=>{b.innerHTML='';b.classList.remove('show')});
   document.querySelectorAll('.actor').forEach(a=>a.classList.remove('speaking'));
   if(!keepCase){ caseId=null; setStatus('no case'); fetch(api('/reset_demo'),{method:'POST'}).catch(()=>{}); }
