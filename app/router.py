@@ -18,7 +18,7 @@ class RateLimited(Exception):
 
 # Exact Nemotron slug — override with the one NVIDIA gives you, no code change:
 #   export NEMOTRON_MODEL=nvidia/...   (works on both NVIDIA direct and OpenRouter)
-NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL", "nvidia/nemotron-3-super-120b-a12b")
 
 # role -> (provider, model). Opus for advocate/judge-US/appeal/strategist (depth),
 # Sonnet for high-volume cheap roles, Gemini=UK judge, Nemotron=opponent+NG judge.
