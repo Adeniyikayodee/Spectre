@@ -175,8 +175,18 @@
     <div class="disclaimer">Decision support, not legal advice. Every status links to a real document and paragraph.</div>
   </div>
 
-  <!-- The side panel: matrix + event log -->
+  <!-- The side panel: case setup + matrix + event log -->
   <div class="panel">
+    <div id="setup" style="background:#fff;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">
+      <b>Case setup</b>
+      <textarea id="f_facts" rows="4" style="width:100%;margin-top:6px;font-size:11px;border:1px solid #ccd;border-radius:6px;padding:6px">Meridian Retail (claimant) engaged TechFlow Solutions (defendant) under a Master Services Agreement to build a retail platform. Meridian alleges late delivery, defective software causing outages during peak trading, and a pre-contract misrepresentation about transaction capacity, claiming wasted expenditure and loss of profit. TechFlow denies breach.</textarea>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+        <label>Side <select id="f_side"><option value="claimant">claimant</option><option value="defendant">defendant</option></select></label>
+        <label>Forum <select id="f_forum"><option value="litigation">litigation</option><option value="arbitration">arbitration</option></select></label>
+      </div>
+      <label style="display:block;margin-top:6px">Jurisdictions <input id="f_juris" value="UK, US, Nigeria" style="width:100%;border:1px solid #ccd;border-radius:6px;padding:5px"></label>
+      <div style="margin-top:6px;color:#888">Press “Load case”, then “Build matrix”. The matrix is always built from the witness bundle in the codebase.</div>
+    </div>
     <div class="tabs">
       <button class="active" onclick="tab('matrix')">Pleading-to-proof matrix</button>
       <button onclick="tab('log')">Event log</button>
@@ -189,11 +199,16 @@
 <div class="modal" id="modal" onclick="this.classList.remove('open')"><div class="box" onclick="event.stopPropagation()"><h3 id="mtitle"></h3><div id="mbody" style="font-size:13px;white-space:pre-wrap"></div></div></div>
 
 <script>
-const TECHFLOW = {
-  facts: "Meridian Retail (claimant) engaged TechFlow Solutions (defendant) under a Master Services Agreement to build a retail platform. Meridian alleges late delivery, defective software causing outages during peak trading, and a pre-contract misrepresentation about transaction capacity, claiming wasted expenditure and loss of profit. TechFlow denies breach.",
-  side: "claimant", jurisdictions: ["UK","US","Nigeria"], forum: "litigation"
-};
 let caseId = null;
+// Read the case-setup form so the user can load any case (the matrix still reads the bundle).
+function caseBody() {
+  return {
+    facts: document.getElementById('f_facts').value,
+    side: document.getElementById('f_side').value,
+    jurisdictions: document.getElementById('f_juris').value.split(',').map(s=>s.trim()).filter(Boolean),
+    forum: document.getElementById('f_forum').value,
+  };
+}
 const api = p => document.getElementById('backend').value.replace(/\/$/,'') + p;
 const setStatus = t => document.getElementById('status').textContent = t;
 const tab = name => { for (const v of ['matrix','log']) document.getElementById(v).classList.toggle('active', v===name);
@@ -217,7 +232,7 @@ function bubble(id, text, conf) {
 
 async function loadCase() {
   resetAll(true);
-  const r = await fetch(api('/create_case'), {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(TECHFLOW)});
+  const r = await fetch(api('/create_case'), {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(caseBody())});
   const j = await r.json(); caseId = j.case_id; setStatus('case ' + caseId); log('Clerk','Case filed. Ready to build the matrix.');
 }
 
