@@ -4,10 +4,6 @@ An adversarial, multi-model moot court that turns a set of case facts into a
 lawyer-facing strategy playbook. It works for either side, across the UK, the US,
 and Nigeria, for both litigation and arbitration.
 
-Design: [`litigation_engine_design.md`](litigation_engine_design.md). Build plan:
-[`BUILD_PLAN.md`](BUILD_PLAN.md). Research mapping:
-[`how_papers_inform_design.md`](how_papers_inform_design.md).
-
 Two engines share the same tools and event contract: the FastAPI pipeline in `app/`
 (documented below) and a Google ADK build in [`adk_app/`](adk_app/) that runs the same
 phases as ADK Sequential, Parallel, and Loop agents.
@@ -76,9 +72,8 @@ runs; `POST /reset_demo` clears it.
 
 ## Research grounding
 
-The design lifts concrete mechanisms from four papers. The full mapping is in
-[`how_papers_inform_design.md`](how_papers_inform_design.md); the PDFs are in
-[`research/`](research/).
+The design lifts concrete mechanisms from four papers (PDFs in
+[`research/`](research/)).
 
 - AgentCourt (Chen et al., 2024, arXiv:2408.08089) is the courtroom-sandbox blueprint:
   lawyer and judge agents, side-swapping, three knowledge bases, and post-verdict

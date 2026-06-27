@@ -1,4 +1,4 @@
-"""FastAPI surface. The REST contract from BUILD_PLAN.md §6.
+"""FastAPI surface: the REST contract for the front end.
 CORS open for the Lovable/Momen front ends; every body carries the disclaimer."""
 import json
 

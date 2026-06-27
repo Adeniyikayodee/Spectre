@@ -1,6 +1,6 @@
 """The game loop. Phases as functions over a case dict.
 
-Paper lineage (see how_papers_inform_design.md — mechanisms, not citations):
+Paper lineage (mechanisms, not citations):
   AgentCourt (Chen 2024)  roster + side-swap, 3-dimension scoring, post-verdict reflection.
   Irving (2018)           precommit, refute-one-flaw, state confidence, reward honest ignorance.
   Du (2023)               2-4 rounds then plateau, summarise before ruling, disagreement = uncertainty.
