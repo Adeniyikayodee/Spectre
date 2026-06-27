@@ -202,6 +202,10 @@ window.clearScene = () => { clearSpeakers(); for(const k in actors) actors[k].bu
 
 // ---- backend wiring (REST + SSE), unchanged logic ----
 let caseId = null;
+// Default the backend to wherever this page is served from (e.g. Cloud Run); the local
+// static server on :8078 and file:// fall back to the local API on :8077.
+document.getElementById('backend').value =
+  (location.port === '8078' || location.protocol === 'file:') ? 'http://localhost:8077' : location.origin;
 function caseBody(){ return { facts:"Meridian Retail (claimant) engaged TechFlow Solutions (defendant) under a Master Services Agreement to build a retail platform. Meridian alleges late delivery, defective software causing outages during peak trading, and a pre-contract misrepresentation about transaction capacity, claiming wasted expenditure and loss of profit. TechFlow denies breach.", side:"claimant", jurisdictions:["UK","US","Nigeria","EU"], forum:"litigation" }; }
 const api = p => document.getElementById('backend').value.replace(/\/$/,'') + p;
 const setStatus = t => document.getElementById('status').textContent = t;

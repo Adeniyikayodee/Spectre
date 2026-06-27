@@ -1,11 +1,12 @@
 """FastAPI surface: the REST contract for the front end.
 CORS open for the Lovable/Momen front ends; every body carries the disclaimer."""
 import json
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 load_dotenv()
@@ -43,11 +44,27 @@ def _require(case_id: str) -> dict:
     return case
 
 
+# The 3D courtroom UI ships with the backend, so one deployed URL is the whole demo.
+_UI = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
+
+
 # ---- routes -----------------------------------------------------------------
 @app.get("/")
 def root():
+    """Serve the courtroom UI when it is present, otherwise the service info."""
+    if _UI.exists():
+        return FileResponse(str(_UI))
+    return _service_info()
+
+
+@app.get("/info")
+def info():
+    return _service_info()
+
+
+def _service_info() -> dict:
     return {
-        "service": "Litigation War-Game Engine",
+        "service": "SPECTRE — Litigation Intelligence",
         "providers": provider_status(),
         "endpoints": ["/create_case", "/build_matrix/stream", "/get_matrix",
                       "/run_hearing", "/run_hearing/stream", "/assess_appeal",
