@@ -13,3 +13,6 @@ google-genai         # Gemini via Vertex AI
 # --- data layer (lazy-imported) ---
 neo4j                # Aura citation graph + fault tree
 google-cloud-bigquery  # system of record (wired at M3)
+
+# --- evidence layer ---
+python-docx          # read the .docx litigation bundle (read only)

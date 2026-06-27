@@ -24,6 +24,8 @@ NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL", "nvidia/llama-3.1-nemotron-70b-inst
 # Sonnet for high-volume cheap roles, Gemini=UK judge, Nemotron=opponent+NG judge.
 ROLES = {
     "intake":       ("claude",     "claude-sonnet-4-6"),
+    "evidence_extract": ("claude", "claude-sonnet-4-6"),
+    "evidence_map":     ("claude", "claude-sonnet-4-6"),
     "advocate_you": ("claude",     "claude-opus-4-8"),
     "advocate_opp": ("nemotron",   NEMOTRON_MODEL),
     "research":     ("perplexity", "sonar-pro"),
